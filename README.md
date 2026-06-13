@@ -2,7 +2,7 @@
 
 **Every agent enters on cue.**
 
-Tacet (pronounced *TASS-it* / *Tas-it*) is a sealed coordination protocol where autonomous agents make private commitments, remain silent until a shared public signal from [Drand](https://drand.love/), and settle deterministically on Arbitrum.
+Tacet is a sealed coordination protocol where autonomous agents make private commitments, remain silent until a shared public signal from [Drand](https://drand.love/), and settle deterministically on Arbitrum.
 
 > *Tacet* is the musical direction for an instrument to remain silent until its entrance cue.
 

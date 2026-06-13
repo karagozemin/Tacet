@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { arbitrumSepolia } from "viem/chains";
-import { createPublicClient, createWalletClient, http, type Hex } from "viem";
+import { createPublicClient, createWalletClient, formatEther, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { generateAuditorKeypair, quicknet, roundInSeconds } from "@tacet/tlock";
@@ -10,6 +10,9 @@ import { TacetClient, itemRefFromString } from "@tacet/sdk";
 import { createSessionMandate, tokenUnitsFromUsdc } from "../services/agent/src/mandate.js";
 import { runBidderAgent } from "../services/agent/src/bidder.js";
 import { runKeeperLifecycle } from "../services/keeper/src/keeper.js";
+import { loadEnv, normalizePrivateKey } from "./load-env.js";
+
+loadEnv();
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -30,13 +33,17 @@ async function loadArtifacts() {
 async function main() {
   const { tacetRoundArtifact, tacetTokenArtifact } = await loadArtifacts();
   const rpcUrl = process.env.ARBITRUM_SEPOLIA_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
-  const deployerKey = requireEnv("DEPLOYER_PRIVATE_KEY") as Hex;
-  const agentBPrincipal = (process.env.AGENT_B_PRINCIPAL_KEY ?? deployerKey) as Hex;
-  const keeperKey = (process.env.KEEPER_PRIVATE_KEY ?? deployerKey) as Hex;
+  const deployerKey = normalizePrivateKey(requireEnv("DEPLOYER_PRIVATE_KEY"));
+  const agentBPrincipal = normalizePrivateKey(process.env.AGENT_B_PRINCIPAL_KEY ?? requireEnv("DEPLOYER_PRIVATE_KEY"));
+  const keeperKey = normalizePrivateKey(process.env.KEEPER_PRIVATE_KEY ?? requireEnv("DEPLOYER_PRIVATE_KEY"));
 
   const deployer = privateKeyToAccount(deployerKey);
   const publicClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) });
   const wallet = createWalletClient({ account: deployer, chain: arbitrumSepolia, transport: http(rpcUrl) });
+
+  const balance = await publicClient.getBalance({ address: deployer.address });
+  console.log(`Deployer ${deployer.address} balance: ${formatEther(balance)} ETH`);
+  if (balance === 0n) throw new Error("Deployer has zero Sepolia ETH");
 
   console.log("Deploying Tacet to Arbitrum Sepolia…");
   const tokenHash = await wallet.deployContract({
@@ -61,8 +68,8 @@ async function main() {
   const drand = quicknet();
   const revealRound = await roundInSeconds(drand, 45);
   const now = Math.floor(Date.now() / 1000);
-  const commitDeadline = BigInt(now + 25);
-  const revealDeadline = BigInt(now + 120);
+  const commitDeadline = BigInt(now + 90);
+  const revealDeadline = BigInt(now + 240);
 
   const operator = new TacetClient({ rpcUrl, chain: arbitrumSepolia, roundAddress, account: deployerKey });
   const { roundId, hash: createTx } = await operator.createRound({
@@ -99,13 +106,14 @@ async function main() {
 
   for (const key of [m1.sessionKey, m2.sessionKey]) {
     const session = privateKeyToAccount(key);
-    await wallet.sendTransaction({
+    const fundHash = await wallet.sendTransaction({
       account: deployer,
       chain: arbitrumSepolia,
       to: session.address,
       value: 10n ** 15n,
     });
-    await wallet.writeContract({
+    await publicClient.waitForTransactionReceipt({ hash: fundHash });
+    const mintHash = await wallet.writeContract({
       address: tokenAddress,
       abi: tacetTokenArtifact.abi,
       functionName: "mint",
@@ -113,6 +121,7 @@ async function main() {
       account: deployer,
       chain: arbitrumSepolia,
     });
+    await publicClient.waitForTransactionReceipt({ hash: mintHash });
   }
 
   const agentA = await runBidderAgent({
