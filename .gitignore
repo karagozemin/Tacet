@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+out/
+cache/
+broadcast/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs & outputs
+*.log
+outputs/
+deployments/local.json
+
+# Next.js
+apps/web/.next/

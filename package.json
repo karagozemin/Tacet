@@ -1,0 +1,24 @@
+{
+  "name": "tacet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tacet — sealed coordination protocol for autonomous agents on Arbitrum",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "test:contracts": "cd contracts && forge test -vv",
+    "e2e:local": "tsx scripts/e2e-local.ts",
+    "e2e:agents": "tsx scripts/e2e-agents.ts",
+    "deploy:sepolia": "tsx scripts/deploy-sepolia.ts",
+    "smoke:sepolia": "tsx scripts/smoke-sepolia.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
