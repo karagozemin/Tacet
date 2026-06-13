@@ -25,6 +25,17 @@ const USE_CASES = [
     title: "sealed coordination",
     description: "Agents bid privately, wait for Drand, then reveal and settle together.",
     payoff: "Stops copy-bidding",
+    roundNoun: "auction",
+    participantNoun: "bidder",
+    commitStep: "Seal bid",
+    revealStep: "Open bids",
+    commitTitle: "Seal your bid",
+    commitDetail: "Set your private valuation. No rival agent can read or react to it before Drand R.",
+    inputLabel: "Private bid amount",
+    actionLabel: "Seal auction bid",
+    escrowLabel: "Bid escrow",
+    decisionLabel: "Bidding posture",
+    decisions: ["Value disciplined", "Balanced", "Win priority"],
   },
   {
     id: "procurement",
@@ -33,6 +44,17 @@ const USE_CASES = [
     title: "private procurement",
     description: "Supplier agents submit sealed quotes without anchoring to competitors.",
     payoff: "Fair supplier pricing",
+    roundNoun: "procurement request",
+    participantNoun: "supplier",
+    commitStep: "Seal quote",
+    revealStep: "Open quotes",
+    commitTitle: "Submit a sealed supplier quote",
+    commitDetail: "Price the contract and choose an SLA. Competing supplier quotes remain unreadable.",
+    inputLabel: "Supplier quote",
+    actionLabel: "Seal supplier quote",
+    escrowLabel: "Performance bond",
+    decisionLabel: "Delivery SLA",
+    decisions: ["24 hours", "3 days", "7 days"],
   },
   {
     id: "coordination",
@@ -41,6 +63,17 @@ const USE_CASES = [
     title: "coordinated intent",
     description: "Agents commit to strategies before a shared public execution cue.",
     payoff: "No reactive decisions",
+    roundNoun: "coordination window",
+    participantNoun: "agent",
+    commitStep: "Lock intent",
+    revealStep: "Open intents",
+    commitTitle: "Lock your execution intent",
+    commitDetail: "Commit a strategy and confidence stake before any collaborating agent can adapt.",
+    inputLabel: "Confidence stake",
+    actionLabel: "Seal execution intent",
+    escrowLabel: "Coordination stake",
+    decisionLabel: "Execution strategy",
+    decisions: ["Accumulate", "Hold position", "Provide liquidity"],
   },
   {
     id: "rfq",
@@ -49,15 +82,19 @@ const USE_CASES = [
     title: "sealed request for quote",
     description: "Market makers answer an RFQ without leaking prices before close.",
     payoff: "Protects price intent",
+    roundNoun: "RFQ",
+    participantNoun: "market maker",
+    commitStep: "Seal price",
+    revealStep: "Open prices",
+    commitTitle: "Answer the RFQ privately",
+    commitDetail: "Choose a firm quote and validity window without leaking price intent to other makers.",
+    inputLabel: "Firm quote price",
+    actionLabel: "Seal RFQ response",
+    escrowLabel: "Quote collateral",
+    decisionLabel: "Quote validity",
+    decisions: ["30 seconds", "2 minutes", "5 minutes"],
   },
-] as const satisfies ReadonlyArray<{
-  id: UseCaseId;
-  index: string;
-  label: string;
-  title: string;
-  description: string;
-  payoff: string;
-}>;
+] as const;
 
 function FlowSteps({
   address,
@@ -65,18 +102,20 @@ function FlowSteps({
   committed,
   revealed,
   working,
+  useCase,
 }: {
   address: string | null;
   roundId: bigint | null;
   committed: boolean;
   revealed: boolean;
   working: boolean;
+  useCase: (typeof USE_CASES)[number];
 }) {
   const steps = [
     { label: "Wallet", detail: address ? shortAddr(address) : "connect", done: Boolean(address) },
     { label: "Round", detail: roundId == null ? "create" : `#${roundId}`, done: roundId != null },
-    { label: "Seal", detail: committed ? "on-chain" : "commit", done: committed },
-    { label: "Reveal", detail: revealed ? "opened" : "after R", done: revealed },
+    { label: useCase.commitStep, detail: committed ? "on-chain" : "commit", done: committed },
+    { label: useCase.revealStep, detail: revealed ? "opened" : "after R", done: revealed },
   ];
   const activeIndex = steps.findIndex((s) => !s.done);
 
@@ -145,6 +184,12 @@ function LivePanel({
 
   const [joinId, setJoinId] = useState("");
   const [duration, setDuration] = useState(DEFAULT_COMMIT_DURATION_SECONDS);
+  const [decisions, setDecisions] = useState<Record<UseCaseId, string>>({
+    auction: USE_CASES[0].decisions[1],
+    procurement: USE_CASES[1].decisions[1],
+    coordination: USE_CASES[2].decisions[1],
+    rfq: USE_CASES[3].decisions[1],
+  });
   const working = status === "working";
 
   let tone = "idle";
@@ -179,14 +224,14 @@ function LivePanel({
   } else if (roundId != null && !hasCommitted && !commitClosed) {
     tone = "urgent";
     if ((tokenBalance ?? 0n) < BigInt(bidAmount * 1_000_000)) {
-      title = "Fund your bid";
-      detail = "Mint free demo TACET, then lock it as escrow for your sealed bid.";
+      title = `Fund your ${useCase.roundNoun}`;
+      detail = `Mint free demo TACET, then lock it as ${useCase.escrowLabel.toLowerCase()}.`;
       ctaLabel = "Mint 1000 TACET";
       cta = () => void mintDemoTokens();
     } else {
-      title = "Seal your bid";
-      detail = "Choose an amount and seal. Encrypted to Drand R — unreadable until reveal.";
-      ctaLabel = "Seal bid";
+      title = useCase.commitTitle;
+      detail = useCase.commitDetail;
+      ctaLabel = useCase.actionLabel;
       cta = () => void commitBid();
     }
     timerLabel = "Time left";
@@ -211,8 +256,8 @@ function LivePanel({
       detail = `${revealedCount} on-chain bid(s) revealed. Winner: ${shortAddr(live.winner)}`;
     }
     timerValue = live?.status ?? "done";
-    ctaLabel = "Done";
-    ctaDisabled = true;
+    ctaLabel = `Start new ${useCase.roundNoun}`;
+    cta = () => void createRound(duration);
   } else if (live?.status === "Cleared") {
     tone = "ready";
     title = "Winner selected";
@@ -222,8 +267,8 @@ function LivePanel({
     cta = () => void finalizeRound();
   } else if (live?.status === "Revealing" && revealedCount > 0 && !revealClosed) {
     tone = "wait";
-    title = "Bids revealed";
-    detail = "The values are public. Final clearing opens after the reveal window closes.";
+    title = `${useCase.revealStep} complete`;
+    detail = "The private decisions are now public. Final clearing opens after the reveal window closes.";
     timerLabel = "Settle in";
     timerValue = formatCountdown(revealSecondsRemaining ?? 0);
     ctaLabel = "Reveal window open";
@@ -237,8 +282,8 @@ function LivePanel({
     cta = () => void finalizeRound();
   } else if (hasCommitted && !commitClosed) {
     tone = "wait";
-    title = "Bid sealed";
-    detail = "Waiting for commit window to close, then Drand R publishes.";
+    title = `${useCase.commitStep} complete`;
+    detail = "Your private decision is committed. Waiting for the shared Drand cue.";
     timerLabel = "Commit closes in";
     timerValue = formatCountdown(commitSecondsRemaining ?? 0);
     ctaLabel = "Waiting…";
@@ -313,6 +358,7 @@ function LivePanel({
         committed={hasCommitted}
         revealed={revealedCount > 0}
         working={working}
+        useCase={useCase}
       />
 
       <section className={`phase-guide ${tone} ${working ? "working" : ""}`}>
@@ -323,7 +369,22 @@ function LivePanel({
 
           {showBidInput ? (
             <div className="phase-input">
-              <label htmlFor="bid-amount">Bid amount (TACET)</label>
+              <div className="decision-field">
+                <label>{useCase.decisionLabel}</label>
+                <div className="decision-chips">
+                  {useCase.decisions.map((decision) => (
+                    <button
+                      key={decision}
+                      type="button"
+                      className={decisions[useCase.id] === decision ? "selected" : ""}
+                      onClick={() => setDecisions((current) => ({ ...current, [useCase.id]: decision }))}
+                    >
+                      {decision}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label htmlFor="bid-amount">{useCase.inputLabel} (TACET)</label>
               <div className="amount-control">
                 <input
                   id="bid-amount"
@@ -345,7 +406,7 @@ function LivePanel({
                   <span>TACET</span>
                 </div>
               </div>
-              <small>Escrow locked: {bidAmount} TACET (6 decimals on-chain)</small>
+              <small>{useCase.escrowLabel}: {bidAmount} TACET · encrypted on-chain as uint128</small>
             </div>
           ) : null}
 
@@ -373,8 +434,8 @@ function LivePanel({
             <article className="lobby-card create-card">
               <span className="lobby-number">01</span>
               <p className="eyebrow">Lead the round</p>
-              <h2>Create a new cue</h2>
-              <p>Choose how long bidders stay silent, then share the new round number.</p>
+              <h2>Create {useCase.roundNoun}</h2>
+              <p>Choose how long {useCase.participantNoun}s stay silent, then share the round number.</p>
               <div className="duration-picker">
                 <label>Commit window</label>
                 <div className="duration-chips">
@@ -397,15 +458,15 @@ function LivePanel({
                 onClick={() => void createRound(duration)}
                 disabled={working}
               >
-                Create sealed round
+                Create sealed {useCase.roundNoun}
               </button>
             </article>
 
             <article className="lobby-card join-card">
               <span className="lobby-number">02</span>
               <p className="eyebrow">Enter on cue</p>
-              <h2>Join by round number</h2>
-              <p>Paste the number from another bidder. Tacet verifies that the commit window is open.</p>
+              <h2>Join {useCase.roundNoun}</h2>
+              <p>Paste the number from another {useCase.participantNoun}. Tacet verifies that entry is open.</p>
               <div className="join-form">
                 <label htmlFor="join-round">Round number</label>
                 <div className="join-form-row">
@@ -430,7 +491,7 @@ function LivePanel({
                 onClick={() => void joinRound(joinId)}
                 disabled={!joinId.trim() || working}
               >
-                Enter round
+                Enter as {useCase.participantNoun}
               </button>
             </article>
           </section>
@@ -452,6 +513,7 @@ function LivePanel({
         <SimulatedAgentStage
           roundId={roundId}
           revealTriggered={revealedCount > 0}
+          scenario={useCase.id}
         />
       ) : null}
 

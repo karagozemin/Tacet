@@ -12,8 +12,10 @@ interface DemoAgent {
   ciphertext: string;
 }
 
-const AGENT_TEMPLATES = [
-  {
+type ScenarioId = "auction" | "procurement" | "coordination" | "rfq";
+
+const SCENARIO_AGENTS = {
+  auction: [{
     name: "Atlas",
     initials: "AT",
     address: "0xA71a…91C4",
@@ -21,8 +23,7 @@ const AGENT_TEMPLATES = [
     escrow: 110,
     color: "#8b72e8",
     rationale: "Strong demand signal · mandate cap 110",
-  },
-  {
+  }, {
     name: "Boreal",
     initials: "BO",
     address: "0xB04e…72F1",
@@ -30,8 +31,7 @@ const AGENT_TEMPLATES = [
     escrow: 90,
     color: "#54a7c7",
     rationale: "Risk-adjusted appraisal · confidence 0.74",
-  },
-  {
+  }, {
     name: "Cadenza",
     initials: "CA",
     address: "0xCad3…18E0",
@@ -39,8 +39,45 @@ const AGENT_TEMPLATES = [
     escrow: 120,
     color: "#d78964",
     rationale: "Scarcity premium · mandate cap 120",
-  },
-] as const;
+  }],
+  procurement: [{
+    name: "Northstar Supply", initials: "NS", address: "0xN0r7…21A4", value: 72, escrow: 100,
+    color: "#8b72e8", rationale: "3-day delivery · 99.5% fulfillment SLA",
+  }, {
+    name: "Meridian Ops", initials: "MO", address: "0xM3r1…88C2", value: 64, escrow: 95,
+    color: "#54a7c7", rationale: "7-day delivery · lowest compliant quote",
+  }, {
+    name: "Cobalt Works", initials: "CW", address: "0xC0ba…19E7", value: 78, escrow: 115,
+    color: "#d78964", rationale: "24-hour delivery · premium assurance",
+  }],
+  coordination: [{
+    name: "Vector", initials: "VE", address: "0xV3c7…A104", value: 81, escrow: 100,
+    color: "#8b72e8", rationale: "Accumulate · confidence 0.81",
+  }, {
+    name: "Tempo", initials: "TE", address: "0x73mp…B822", value: 73, escrow: 100,
+    color: "#54a7c7", rationale: "Provide liquidity · confidence 0.73",
+  }, {
+    name: "Signal", initials: "SI", address: "0x519n…C901", value: 88, escrow: 110,
+    color: "#d78964", rationale: "Hold position · confidence 0.88",
+  }],
+  rfq: [{
+    name: "Apex MM", initials: "AX", address: "0xAp3x…1104", value: 86, escrow: 100,
+    color: "#8b72e8", rationale: "Firm for 30 seconds · tight spread",
+  }, {
+    name: "Bluefin", initials: "BF", address: "0xB1u3…72F1", value: 82, escrow: 100,
+    color: "#54a7c7", rationale: "Firm for 2 minutes · balanced inventory",
+  }, {
+    name: "Citrine", initials: "CI", address: "0xC17r…18E0", value: 89, escrow: 110,
+    color: "#d78964", rationale: "Firm for 5 minutes · protected quote",
+  }],
+} as const;
+
+const SCENARIO_COPY = {
+  auction: { eyebrow: "Auction room", title: "Bidders enter in silence.", noun: "bidders" },
+  procurement: { eyebrow: "Supplier room", title: "Quotes arrive without anchoring.", noun: "suppliers" },
+  coordination: { eyebrow: "Coordination room", title: "Strategies lock before execution.", noun: "agents" },
+  rfq: { eyebrow: "Private RFQ room", title: "Market makers commit firm prices.", noun: "market makers" },
+} as const;
 
 function ciphertextFor(roundId: bigint, index: number): string {
   const seed = (roundId * 7919n + BigInt(index + 1) * 104729n).toString(16).padStart(12, "0");
@@ -50,9 +87,11 @@ function ciphertextFor(roundId: bigint, index: number): string {
 export function SimulatedAgentStage({
   roundId,
   revealTriggered,
+  scenario,
 }: {
   roundId: bigint;
   revealTriggered: boolean;
+  scenario: ScenarioId;
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const [revealRequested, setRevealRequested] = useState(false);
@@ -60,12 +99,13 @@ export function SimulatedAgentStage({
 
   const agents = useMemo<DemoAgent[]>(
     () =>
-      AGENT_TEMPLATES.map((agent, index) => ({
+      SCENARIO_AGENTS[scenario].map((agent, index) => ({
         ...agent,
         ciphertext: ciphertextFor(roundId, index),
       })),
-    [roundId],
+    [roundId, scenario],
   );
+  const copy = SCENARIO_COPY[scenario];
   const winner = Math.max(...agents.map((agent) => agent.value));
   const revealing = revealRequested || revealTriggered;
 
@@ -91,8 +131,8 @@ export function SimulatedAgentStage({
     <section className={`agent-stage ${revealing ? "revealing" : ""}`}>
       <header className="agent-stage-header">
         <div>
-          <p className="eyebrow">Scenario preview · autonomous market</p>
-          <h2>{revealing ? "The cue has sounded." : "Agents enter in silence."}</h2>
+          <p className="eyebrow">{copy.eyebrow} · scenario preview</p>
+          <h2>{revealing ? "The cue has sounded." : copy.title}</h2>
           <p>
             A jury-facing preview of the multi-agent market experience. Values stay hidden behind
             Drand-style ciphertext until the cue.
@@ -181,7 +221,7 @@ export function SimulatedAgentStage({
       </div>
 
       <footer className="stage-footnote">
-        <span>{visibleCount} / {agents.length} preview agents arrived</span>
+        <span>{visibleCount} / {agents.length} preview {copy.noun} arrived</span>
         <span>Live protocol state and on-chain bidder count are shown separately.</span>
       </footer>
     </section>
