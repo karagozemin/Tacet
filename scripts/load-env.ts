@@ -19,12 +19,23 @@ export function loadEnv(): void {
       ) {
         value = value.slice(1, -1);
       }
-      if (process.env[key] === undefined) process.env[key] = value;
+      if (!value) continue;
+      if (process.env[key] === undefined || process.env[key] === "") process.env[key] = value;
     }
   }
 }
 
+export function envKey(name: string, fallback?: string): string {
+  const v = process.env[name]?.trim();
+  if (v) return v;
+  if (fallback) return fallback;
+  throw new Error(`Missing ${name}`);
+}
+
 export function normalizePrivateKey(key: string): `0x${string}` {
-  const k = key.startsWith("0x") ? key : `0x${key}`;
-  return k as `0x${string}`;
+  const clean = key.trim().replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]{64}$/.test(clean)) {
+    throw new Error("invalid private key format (expected 64 hex chars)");
+  }
+  return `0x${clean}` as `0x${string}`;
 }

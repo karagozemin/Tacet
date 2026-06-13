@@ -49,7 +49,7 @@
 - [x] Local E2E verified — two agents, Drand reveal, clear, settle (`outputs/e2e-local.json`, status **Settled**)
 - [x] `scripts/deploy-sepolia.ts`
 - [x] `scripts/smoke-sepolia.ts`
-- [ ] Arbitrum Sepolia live deploy — **blocked without `DEPLOYER_PRIVATE_KEY`**
+- [x] Arbitrum Sepolia live deploy — round #1 **Settled** (see `outputs/deployment.json`)
 
 ### Phase 5 — Demo & submission
 

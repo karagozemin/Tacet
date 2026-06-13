@@ -46,15 +46,18 @@ cp .env.example .env
 pnpm deploy:sepolia
 ```
 
-## Live deployment
+## Live deployment (Arbitrum Sepolia)
 
-See `outputs/deployment.json` after Sepolia deploy. Explorer links are recorded in `outputs/sepolia-evidence.json`.
+| | |
+|---|---|
+| **Round contract** | [`0x7359840f416951C27d7B0c1f84AE88091939dfdB`](https://sepolia.arbiscan.io/address/0x7359840f416951C27d7B0c1f84AE88091939dfdB) |
+| **Demo token (TACET)** | [`0xbAF3F929E3D11866ddD672E96bB669427cFA6726`](https://sepolia.arbiscan.io/address/0xbAF3F929E3D11866ddD672E96bB669427cFA6726) |
+| **Demo round** | #1 — status **Settled** |
+| **Chain** | Arbitrum Sepolia (421614) |
 
-| Field | Value |
-|-------|-------|
-| Network | Arbitrum Sepolia (421614) |
-| Round contract | *set after deploy* |
-| Demo token | TACET (6 decimals, mintable test asset) |
+Key txs: `openReveal` [`0x96037a…`](https://sepolia.arbiscan.io/tx/0x96037a537487332fada4e7817d1285ca2790c09c609accd8b556db00f220ee74) · `settle` [`0x903291…`](https://sepolia.arbiscan.io/tx/0x903291443f15d1c714fe2c272ae0b4c66e9bbbb8baaecf3962c0d4bf012cb4f3)
+
+Full evidence: `outputs/sepolia-evidence.json`
 
 ## Demo UI
 

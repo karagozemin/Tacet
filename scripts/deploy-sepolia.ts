@@ -10,7 +10,7 @@ import { TacetClient, itemRefFromString } from "@tacet/sdk";
 import { createSessionMandate, tokenUnitsFromUsdc } from "../services/agent/src/mandate.js";
 import { runBidderAgent } from "../services/agent/src/bidder.js";
 import { runKeeperLifecycle } from "../services/keeper/src/keeper.js";
-import { loadEnv, normalizePrivateKey } from "./load-env.js";
+import { loadEnv, normalizePrivateKey, envKey } from "./load-env.js";
 
 loadEnv();
 
@@ -33,9 +33,9 @@ async function loadArtifacts() {
 async function main() {
   const { tacetRoundArtifact, tacetTokenArtifact } = await loadArtifacts();
   const rpcUrl = process.env.ARBITRUM_SEPOLIA_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
-  const deployerKey = normalizePrivateKey(requireEnv("DEPLOYER_PRIVATE_KEY"));
-  const agentBPrincipal = normalizePrivateKey(process.env.AGENT_B_PRINCIPAL_KEY ?? requireEnv("DEPLOYER_PRIVATE_KEY"));
-  const keeperKey = normalizePrivateKey(process.env.KEEPER_PRIVATE_KEY ?? requireEnv("DEPLOYER_PRIVATE_KEY"));
+  const deployerKey = normalizePrivateKey(envKey("DEPLOYER_PRIVATE_KEY"));
+  const agentBPrincipal = normalizePrivateKey(envKey("AGENT_B_PRINCIPAL_KEY", envKey("DEPLOYER_PRIVATE_KEY")));
+  const keeperKey = normalizePrivateKey(envKey("KEEPER_PRIVATE_KEY", envKey("DEPLOYER_PRIVATE_KEY")));
 
   const deployer = privateKeyToAccount(deployerKey);
   const publicClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) });
