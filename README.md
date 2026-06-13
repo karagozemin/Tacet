@@ -69,7 +69,9 @@ Full evidence: `outputs/sepolia-evidence.json`
 pnpm --filter @tacet/web dev
 ```
 
-Open http://localhost:5173 — jury dashboard with lifecycle, agents, and trust assumptions.
+Open http://localhost:5173 → **Launch live demo** → connect MetaMask on **Arbitrum Sepolia**.
+
+Live flow: mint demo TACET → create/join round → seal bid → wait for Drand R → open + reveal → settle. Evidence tab shows Sepolia deployment proof.
 
 ## Architecture
 

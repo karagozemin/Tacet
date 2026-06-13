@@ -1,6 +1,7 @@
 // Commitment byte encoding — matches TacetRound.sol sha256(abi.encodePacked(uint128, bytes32)).
 
-import { createHash, randomBytes } from "node:crypto";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { randomBytes } from "@noble/hashes/utils.js";
 
 export const VALUE_BYTES = 16;
 export const NONCE_BYTES = 32;
@@ -55,7 +56,7 @@ export function generateNonce(): Uint8Array {
 }
 
 export function commitment(value: bigint, nonce: Uint8Array): Uint8Array {
-  return new Uint8Array(createHash("sha256").update(encodeBidPreimage(value, nonce)).digest());
+  return sha256(encodeBidPreimage(value, nonce));
 }
 
 export function commitmentHex(value: bigint, nonce: Uint8Array): `0x${string}` {

@@ -4,4 +4,10 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
+  resolve: {
+    dedupe: ["react", "react-dom", "viem"],
+  },
+  optimizeDeps: {
+    include: ["@tacet/sdk", "@tacet/tlock", "wagmi", "viem"],
+  },
 });

@@ -7,5 +7,9 @@ overrides:
   "@noble/hashes": 1.8.0
   "@noble/curves": 1.9.2
   "@noble/ciphers": 1.2.1
+
 allowBuilds:
-  esbuild: set this to true or false
+  bufferutil: false
+  esbuild: true
+  keccak: false
+  utf-8-validate: false

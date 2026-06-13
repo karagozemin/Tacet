@@ -27,7 +27,11 @@ export interface TacetClientConfig {
   chain: Chain;
   roundAddress: Address;
   tokenAddress?: Address;
+  /** Local/script signing via private key. */
   account?: Hex;
+  /** Browser wallet from wagmi / injected provider. */
+  walletClient?: WalletClient;
+  publicClient?: PublicClient;
 }
 
 export interface CreateRoundParams {
@@ -55,12 +59,17 @@ export class TacetClient {
   readonly public: PublicClient;
   readonly wallet?: WalletClient;
   readonly roundAddress: Address;
-  readonly account?: ReturnType<typeof privateKeyToAccount>;
+  readonly account?: import("viem").Account;
 
   constructor(private readonly config: TacetClientConfig) {
     this.roundAddress = config.roundAddress;
-    this.public = createPublicClient({ chain: config.chain, transport: http(config.rpcUrl) });
-    if (config.account) {
+    this.public =
+      config.publicClient ??
+      createPublicClient({ chain: config.chain, transport: http(config.rpcUrl) });
+    if (config.walletClient) {
+      this.wallet = config.walletClient;
+      this.account = config.walletClient.account ?? undefined;
+    } else if (config.account) {
       this.account = privateKeyToAccount(config.account);
       this.wallet = createWalletClient({
         account: this.account,
@@ -140,8 +149,10 @@ export class TacetClient {
   }
 
   private requireWallet() {
-    if (!this.wallet || !this.account) throw new Error("wallet account required");
-    return { wallet: this.wallet, account: this.account };
+    if (!this.wallet) throw new Error("wallet client required");
+    const account = this.wallet.account ?? this.account;
+    if (!account) throw new Error("wallet account required");
+    return { wallet: this.wallet, account };
   }
 
   async createRound(params: CreateRoundParams): Promise<{ roundId: bigint; hash: Hash }> {

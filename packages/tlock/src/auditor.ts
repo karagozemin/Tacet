@@ -1,5 +1,6 @@
-import { hkdfSync } from "node:crypto";
-import { createHash, randomBytes } from "node:crypto";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { randomBytes } from "@noble/hashes/utils.js";
 
 import { x25519 } from "@noble/curves/ed25519";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha";
@@ -22,7 +23,7 @@ function deriveKey(shared: Uint8Array, ephPub: Uint8Array, auditorPub: Uint8Arra
   const salt = new Uint8Array(EPH_PUB_BYTES * 2);
   salt.set(ephPub, 0);
   salt.set(auditorPub, EPH_PUB_BYTES);
-  return new Uint8Array(hkdfSync("sha256", shared, salt, HKDF_INFO, 32));
+  return hkdf(sha256, shared, salt, HKDF_INFO, 32);
 }
 
 export function sealIdentity(identity: Uint8Array, auditorPublicKey: Uint8Array): Uint8Array {
