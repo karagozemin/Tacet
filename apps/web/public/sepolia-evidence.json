@@ -1,0 +1,35 @@
+{
+  "chainId": 421614,
+  "network": "arbitrum-sepolia",
+  "deploy": {
+    "tokenAddress": "0xbAF3F929E3D11866ddD672E96bB669427cFA6726",
+    "roundAddress": "0x7359840f416951C27d7B0c1f84AE88091939dfdB"
+  },
+  "explorer": {
+    "token": "https://sepolia.arbiscan.io/address/0xbAF3F929E3D11866ddD672E96bB669427cFA6726",
+    "round": "https://sepolia.arbiscan.io/address/0x7359840f416951C27d7B0c1f84AE88091939dfdB"
+  },
+  "roundId": "1",
+  "keeper": {
+    "keep": {
+      "roundId": "1",
+      "finalStatus": "Settled",
+      "openedReveal": false,
+      "revealed": [],
+      "skipped": [],
+      "txHashes": []
+    },
+    "close": {
+      "cleared": true,
+      "settled": true,
+      "winner": "0x01d92B1D916B665B718fF486B6aC06654cE46B06",
+      "winningBid": "80550000",
+      "finalStatus": "Settled",
+      "txHashes": []
+    },
+    "allTxHashes": []
+  },
+  "finalStatus": "Settled",
+  "winner": "0x01d92B1D916B665B718fF486B6aC06654cE46B06",
+  "winningBid": "80550000"
+}

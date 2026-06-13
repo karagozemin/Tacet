@@ -13,6 +13,7 @@
     "e2e:agents": "tsx scripts/e2e-agents.ts",
     "deploy:sepolia": "tsx scripts/deploy-sepolia.ts",
     "continue:sepolia": "tsx scripts/continue-sepolia.ts",
+    "sync:web": "cp assets/brand/tacet.png apps/web/public/tacet.png && cp outputs/deployment.json apps/web/public/deployment.json 2>/dev/null; cp outputs/sepolia-evidence.json apps/web/public/sepolia-evidence.json 2>/dev/null || true",
     "smoke:sepolia": "tsx scripts/smoke-sepolia.ts"
   },
   "devDependencies": {

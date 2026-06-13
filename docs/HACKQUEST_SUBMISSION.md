@@ -59,6 +59,8 @@ Two mandate-bound agents (**Atlas**, **Boreal**) independently appraise the same
 
 Local: `pnpm --filter @tacet/web dev` → http://localhost:5173
 
+Brand assets: `assets/brand/tacet.png`
+
 ## Video link
 
 *To be recorded using `docs/VIDEO_SCRIPT.md`*

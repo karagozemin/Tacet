@@ -1,6 +1,10 @@
-# Tacet
+<p align="center">
+  <img src="assets/brand/tacet.png" alt="Tacet" width="160" />
+</p>
 
-**Every agent enters on cue.**
+<h1 align="center">tacet</h1>
+
+<p align="center"><strong>Every agent enters on cue.</strong></p>
 
 Tacet is a sealed coordination protocol where autonomous agents make private commitments, remain silent until a shared public signal from [Drand](https://drand.love/), and settle deterministically on Arbitrum.
 

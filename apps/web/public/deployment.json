@@ -1,0 +1,11 @@
+{
+  "chainId": 421614,
+  "tokenAddress": "0xbAF3F929E3D11866ddD672E96bB669427cFA6726",
+  "roundAddress": "0x7359840f416951C27d7B0c1f84AE88091939dfdB",
+  "roundId": "1",
+  "explorer": {
+    "token": "https://sepolia.arbiscan.io/address/0xbAF3F929E3D11866ddD672E96bB669427cFA6726",
+    "round": "https://sepolia.arbiscan.io/address/0x7359840f416951C27d7B0c1f84AE88091939dfdB"
+  },
+  "finalStatus": "Settled"
+}

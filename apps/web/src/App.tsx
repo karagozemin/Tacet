@@ -6,6 +6,7 @@ interface Deployment {
   tokenAddress?: string;
   roundAddress?: string;
   roundId?: string;
+  finalStatus?: string;
   explorer?: { token?: string; round?: string };
 }
 
@@ -23,6 +24,7 @@ interface Evidence {
     keep?: { revealed: string[]; txHashes: string[] };
     close?: { winner?: string; winningBid?: string | number; txHashes: string[]; finalStatus: string };
   };
+  finalStatus?: string;
 }
 
 const STATUS_FLOW = ["Open", "Commit", "Sealed", "Drand cue", "Reveal", "Clear", "Settle"] as const;
@@ -68,15 +70,15 @@ export default function App() {
   ];
 
   const revealed = evidence?.keeper?.keep?.revealed?.length;
-  const finalStatus = evidence?.keeper?.close?.finalStatus ?? "Revealing";
+  const finalStatus = evidence?.finalStatus ?? evidence?.keeper?.close?.finalStatus ?? deployment?.finalStatus ?? "Revealing";
 
   return (
     <div className="page">
       <header className="hero">
         <div className="brand">
-          <span className="mark">𝄽</span>
+          <img src="/tacet.png" alt="Tacet" className="logo" />
           <div>
-            <h1>Tacet</h1>
+            <h1>tacet</h1>
             <p className="tagline">Every agent enters on cue.</p>
           </div>
         </div>
@@ -172,7 +174,8 @@ export default function App() {
         </ul>
       </section>
 
-      <footer>
+      <footer className="footer">
+        <img src="/tacet.png" alt="" className="footer-logo" aria-hidden />
         <p>Tacet · Arbitrum Open House London Buildathon · <span className="mono">/tass-it/</span></p>
       </footer>
     </div>
