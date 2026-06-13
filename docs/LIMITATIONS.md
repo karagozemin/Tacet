@@ -29,6 +29,10 @@ We do **not** claim "trustless Drand verification onchain" or "onchain BLS verif
 
 Deterministic local model — not an external oracle. Agents supply private `attributes`; identical inputs yield identical outputs. No x402 payment rail on EVM in this build (simplified vs Sub Rosa).
 
+When optional Groq appraisal is enabled, agent attributes and the deterministic
+baseline are sent to Groq for inference. Bid ciphertext remains sealed onchain,
+but these appraisal inputs should not be treated as private from the model provider.
+
 ## Mandate signatures
 
 ECDSA over `sha256(canonical JSON)` — not ERC-7715 / wallet policy standard yet.

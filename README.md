@@ -50,6 +50,10 @@ cp .env.example .env
 pnpm deploy:sepolia
 ```
 
+Set `GROQ_API_KEY` in `.env.local` to let bidder agents make independent
+LLM-assisted appraisal decisions. Mandate caps remain enforced in code, and
+agents fall back to deterministic appraisal if Groq is unavailable.
+
 ## Live deployment (Arbitrum Sepolia)
 
 | | |

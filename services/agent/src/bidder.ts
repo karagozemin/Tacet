@@ -11,6 +11,17 @@ import {
   verifySessionMandate,
   type SessionMandate,
 } from "./mandate.js";
+import { requestGroqDecision, type GroqDecision } from "./groq.js";
+
+export interface DeterministicDecision {
+  source: "deterministic";
+  model: string;
+  suggestedBidUsdc: number;
+  confidence: number;
+  rationale: string[];
+}
+
+export type AgentDecision = DeterministicDecision | GroqDecision;
 
 export interface BidderAgentConfig {
   mandate: SessionMandate;
@@ -23,6 +34,12 @@ export interface BidderAgentConfig {
   revealRound: number;
   attributes: AppraisalAttributes;
   agentName: string;
+  groq?: {
+    apiKey?: string;
+    model?: string;
+    persona?: string;
+    fallback?: boolean;
+  };
   drand?: DrandClient;
   log?: (msg: string) => void;
 }
@@ -33,6 +50,7 @@ export interface BidderAgentResult {
   bidValue: bigint;
   escrow: bigint;
   appraisal: ReturnType<typeof appraise>;
+  decision: AgentDecision;
   commitTx: Hex;
   rationale: string[];
 }
@@ -69,7 +87,38 @@ export async function runBidderAgent(config: BidderAgentConfig): Promise<BidderA
   });
   log(`${config.agentName}: appraisal fair=${appraisal.fairValue} suggested=${appraisal.suggestedMaxBid}`);
 
-  const { bidValue, escrow } = bidFromAppraisal(appraisal.suggestedMaxBid, config.mandate);
+  let decision: AgentDecision = {
+    source: "deterministic",
+    model: appraisal.model,
+    suggestedBidUsdc: appraisal.suggestedMaxBid,
+    confidence: appraisal.confidence,
+    rationale: appraisal.rationale,
+  };
+  const groqApiKey = config.groq?.apiKey ?? process.env.GROQ_API_KEY;
+  if (groqApiKey) {
+    try {
+      decision = await requestGroqDecision({
+        apiKey: groqApiKey,
+        model: config.groq?.model ?? process.env.GROQ_MODEL,
+        persona: config.groq?.persona,
+        agentName: config.agentName,
+        itemRef: config.mandate.itemRef,
+        category: config.mandate.category,
+        basePriceUsdc: config.mandate.basePriceUsdc,
+        attributes: config.attributes,
+        baseline: appraisal,
+        maxBidUsdc: usdcFromTokenUnits(BigInt(config.mandate.maxBidUnits)),
+      });
+      log(
+        `${config.agentName}: Groq decision model=${decision.model} suggested=${decision.suggestedBidUsdc} confidence=${decision.confidence}`,
+      );
+    } catch (error) {
+      if (config.groq?.fallback === false) throw error;
+      log(`${config.agentName}: Groq unavailable, using deterministic fallback (${error instanceof Error ? error.message : String(error)})`);
+    }
+  }
+
+  const { bidValue, escrow } = bidFromAppraisal(decision.suggestedBidUsdc, config.mandate);
   assertBidWithinMandate(config.mandate, bidValue, escrow);
   log(`${config.agentName}: bid ${usdcFromTokenUnits(bidValue)} TACET escrow ${usdcFromTokenUnits(escrow)}`);
 
@@ -123,8 +172,9 @@ export async function runBidderAgent(config: BidderAgentConfig): Promise<BidderA
     bidValue,
     escrow,
     appraisal,
+    decision,
     commitTx,
-    rationale: appraisal.rationale,
+    rationale: decision.rationale,
   };
 }
 

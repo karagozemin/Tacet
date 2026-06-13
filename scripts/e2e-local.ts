@@ -10,6 +10,9 @@ import { TacetClient, itemRefFromString } from "@tacet/sdk";
 import { runKeeperLifecycle } from "../services/keeper/src/keeper.js";
 import { createSessionMandate, tokenUnitsFromUsdc } from "../services/agent/src/mandate.js";
 import { runBidderAgent } from "../services/agent/src/bidder.js";
+import { loadEnv } from "./load-env.js";
+
+loadEnv();
 
 const ANVIL_PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
 const ANVIL_PK_2 = "0x59c6995e998f97a5a0044966f0945389dc9b86e40b5a14f12a7946b4a3551e88" as Hex;
@@ -144,6 +147,9 @@ async function main() {
     auditorPubkey: auditor.publicKey,
     revealRound,
     agentName: "Agent Atlas",
+    groq: {
+      persona: "You are growth-oriented. Pay a measured premium for strong demand, but respect the mandate cap.",
+    },
     attributes: { quality: 72, demand: 80, scarcity: 55, risk: 30 },
     drand,
     log: console.log,
@@ -158,6 +164,9 @@ async function main() {
     auditorPubkey: auditor.publicKey,
     revealRound,
     agentName: "Agent Boreal",
+    groq: {
+      persona: "You are risk-first and price-disciplined. Discount uncertainty and avoid emotional overbidding.",
+    },
     attributes: { quality: 65, demand: 70, scarcity: 60, risk: 40 },
     drand,
     log: console.log,

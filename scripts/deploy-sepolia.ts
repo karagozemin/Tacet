@@ -134,6 +134,9 @@ async function main() {
     auditorPubkey: auditor.publicKey,
     revealRound,
     agentName: "Agent Atlas",
+    groq: {
+      persona: "You are growth-oriented. Pay a measured premium for strong demand, but respect the mandate cap.",
+    },
     attributes: { quality: 78, demand: 85, scarcity: 50, risk: 25 },
     log: console.log,
   });
@@ -147,6 +150,9 @@ async function main() {
     auditorPubkey: auditor.publicKey,
     revealRound,
     agentName: "Agent Boreal",
+    groq: {
+      persona: "You are risk-first and price-disciplined. Discount uncertainty and avoid emotional overbidding.",
+    },
     attributes: { quality: 60, demand: 75, scarcity: 70, risk: 35 },
     log: console.log,
   });
