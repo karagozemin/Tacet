@@ -172,6 +172,14 @@ export class TacetClient {
     };
   }
 
+  private async waitForSuccess(hash: Hash) {
+    const receipt = await this.public.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") {
+      throw new Error(`Transaction ${hash} reverted on-chain.`);
+    }
+    return receipt;
+  }
+
   async createRound(params: CreateRoundParams): Promise<{ roundId: bigint; hash: Hash }> {
     const { wallet, account } = this.requireWallet();
     const fees = await this.bufferedFees();
@@ -191,7 +199,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     const next = (await this.public.readContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -218,7 +226,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     return hash;
   }
 
@@ -234,7 +242,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     return hash;
   }
 
@@ -250,7 +258,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     return hash;
   }
 
@@ -266,7 +274,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     const round = await this.getRound(roundId);
     return {
       winner: round.winner === "0x0000000000000000000000000000000000000000" ? undefined : round.winner,
@@ -287,7 +295,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     return hash;
   }
 
@@ -303,7 +311,7 @@ export class TacetClient {
       chain: this.config.chain,
       ...fees,
     });
-    await this.public.waitForTransactionReceipt({ hash });
+    await this.waitForSuccess(hash);
     return hash;
   }
 }

@@ -162,17 +162,25 @@ export function SimulatedAgentStage({
         {agents.map((agent, index) => {
           const visible = index < visibleCount;
           const revealed = index < revealedCount;
+          const decrypting = revealing && visible && !revealed;
           const isWinner = revealedCount === agents.length && agent.value === winner;
           return (
             <article
               key={agent.name}
               className={`sim-agent-card ${visible ? "arrived" : "queued"} ${
                 revealed ? "revealed" : "sealed"
-              } ${isWinner ? "winner" : ""}`}
+              } ${decrypting ? "decrypting" : ""} ${isWinner ? "winner" : ""}`}
               style={{ "--agent-color": agent.color } as CSSProperties}
             >
               <div className="sim-agent-card-inner">
                 <div className="sim-agent-face sim-agent-sealed">
+                  <div className="crypto-state-banner">
+                    <span className="crypto-lock" aria-hidden>⌁</span>
+                    <div>
+                      <strong>{decrypting ? "DECRYPTING WITH DRAND R" : "ENCRYPTED · TIMELOCKED"}</strong>
+                      <small>{decrypting ? "opening ciphertext…" : "plaintext unavailable before cue"}</small>
+                    </div>
+                  </div>
                   <header>
                     <span className="agent-avatar">{agent.initials}</span>
                     <div>
@@ -182,7 +190,7 @@ export function SimulatedAgentStage({
                     <span className="agent-state">{visible ? "sealed" : "queued"}</span>
                   </header>
                   <div className="cipher-field">
-                    <span>encrypted bid</span>
+                    <span>{decrypting ? "decrypting ciphertext" : "encrypted ciphertext"}</span>
                     <strong>{visible ? agent.ciphertext : "waiting for entrance cue"}</strong>
                     <div className="cipher-bars" aria-hidden>
                       <i />
@@ -191,6 +199,7 @@ export function SimulatedAgentStage({
                       <i />
                       <i />
                     </div>
+                    {decrypting ? <div className="decrypt-scan" aria-hidden /> : null}
                   </div>
                   <footer>
                     <span>Escrow {agent.escrow} TACET</span>
@@ -199,6 +208,13 @@ export function SimulatedAgentStage({
                 </div>
 
                 <div className="sim-agent-face sim-agent-revealed">
+                  <div className="crypto-state-banner opened">
+                    <span className="crypto-lock" aria-hidden>✓</span>
+                    <div>
+                      <strong>DECRYPTED · PUBLIC</strong>
+                      <small>Drand cue verified · plaintext opened</small>
+                    </div>
+                  </div>
                   <header>
                     <span className="agent-avatar">{agent.initials}</span>
                     <div>

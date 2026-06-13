@@ -19,17 +19,17 @@ export const TOKEN_ADDRESS = (import.meta.env.VITE_TOKEN_ADDRESS ??
 export const TOKEN_DECIMALS = 6;
 export const TOKEN_LABEL = "TACET";
 
-export const LIVE_COMMIT_CLOSE_BEFORE_REVEAL_SECONDS = 30;
-export const LIVE_REVEAL_WINDOW_AFTER_REVEAL_SECONDS = 600;
+export const LIVE_ROUND_SETUP_BUFFER_SECONDS = 15;
+export const LIVE_COMMIT_CLOSE_BEFORE_REVEAL_SECONDS = 3;
+export const LIVE_REVEAL_WINDOW_SECONDS = 45;
 
 export const COMMIT_DURATION_PRESETS = [
-  { seconds: 60, label: "1 min", helper: "solo demo" },
-  { seconds: 120, label: "2 min", helper: "paired demo" },
-  { seconds: 300, label: "5 min", helper: "public test" },
-  { seconds: 600, label: "10 min", helper: "hackathon" },
+  { seconds: 10, label: "10 sec", helper: "after sealing" },
+  { seconds: 30, label: "30 sec", helper: "after sealing" },
+  { seconds: 180, label: "3 min", helper: "after sealing" },
 ] as const;
 
-export const DEFAULT_COMMIT_DURATION_SECONDS = 120;
+export const DEFAULT_COMMIT_DURATION_SECONDS = 30;
 
 export function toTokenUnits(amount: number): bigint {
   return BigInt(Math.max(1, Math.round(amount * 10 ** TOKEN_DECIMALS)));

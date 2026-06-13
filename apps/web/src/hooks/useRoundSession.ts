@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
   useConnect,
@@ -10,13 +10,14 @@ import {
 import { generateNonce, openBid, quicknet, roundInSeconds, sealBid } from "@tacet/tlock";
 import { TacetClient, itemRefFromString } from "@tacet/sdk";
 import type { Address, Hash, Hex } from "viem";
-import { toHex } from "viem";
+import { maxUint256, toHex } from "viem";
 
 import {
   CHAIN,
   DEFAULT_COMMIT_DURATION_SECONDS,
   LIVE_COMMIT_CLOSE_BEFORE_REVEAL_SECONDS,
-  LIVE_REVEAL_WINDOW_AFTER_REVEAL_SECONDS,
+  LIVE_ROUND_SETUP_BUFFER_SECONDS,
+  LIVE_REVEAL_WINDOW_SECONDS,
   ROUND_ADDRESS,
   RPC_URL,
   TOKEN_ADDRESS,
@@ -28,6 +29,14 @@ import { erc20Abi } from "../lib/tokenAbi";
 import { formatCountdown, useDrandCountdown } from "./useDrandCountdown";
 
 export type ActionStatus = "idle" | "working" | "ok" | "error";
+export interface RoundHistoryEntry {
+  roundId: string;
+  useCase: string;
+  role: "created" | "joined";
+  status: string;
+  revealRound?: string;
+  updatedAt: number;
+}
 
 function storedRoundId(storageKey: string): bigint | null {
   const saved = window.localStorage.getItem(storageKey);
@@ -35,6 +44,18 @@ function storedRoundId(storageKey: string): bigint | null {
     return saved ? BigInt(saved) : null;
   } catch {
     return null;
+  }
+}
+
+function storedRoundHistory(address?: Address): RoundHistoryEntry[] {
+  if (!address) return [];
+  try {
+    const value = JSON.parse(
+      window.localStorage.getItem(`tacet:round-history:${address.toLowerCase()}`) ?? "[]",
+    );
+    return Array.isArray(value) ? (value as RoundHistoryEntry[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -60,11 +81,14 @@ export function useRoundSession(sessionKey = "default") {
     }
     return legacy;
   });
-  const [commitValue, setCommitValue] = useState<bigint | null>(null);
+  const [restoringRound, setRestoringRound] = useState(() => storedRoundId(storageKey) != null);
+  const restoringRoundRef = useRef(storedRoundId(storageKey) != null);
   const [sealedCiphertext, setSealedCiphertext] = useState<Uint8Array | null>(null);
   const [status, setStatus] = useState<ActionStatus>("idle");
+  const [commitInFlight, setCommitInFlight] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [tokenBalance, setTokenBalance] = useState<bigint | null>(null);
+  const [tokenAllowance, setTokenAllowance] = useState<bigint | null>(null);
   const [live, setLive] = useState<Awaited<ReturnType<TacetClient["getRound"]>> | null>(null);
   const [bidders, setBidders] = useState<Address[]>([]);
   const [bidStates, setBidStates] = useState<
@@ -73,6 +97,7 @@ export function useRoundSession(sessionKey = "default") {
   const [revealProgress, setRevealProgress] = useState<{ current: number; total: number } | null>(
     null,
   );
+  const [roundHistory, setRoundHistory] = useState<RoundHistoryEntry[]>([]);
 
   const client = useMemo(() => {
     if (!walletClient || !publicClient) return null;
@@ -109,8 +134,7 @@ export function useRoundSession(sessionKey = "default") {
   const commitClosed = commitSecondsRemaining != null && commitSecondsRemaining <= 0;
   const revealClosed = revealSecondsRemaining != null && revealSecondsRemaining <= 0;
   const hasCommitted = Boolean(
-    address &&
-      ((bidStates[address]?.escrow ?? 0n) > 0n || (commitValue ?? 0n) > 0n),
+    address && (bidStates[address]?.escrow ?? 0n) > 0n,
   );
   const revealedCount = Object.values(bidStates).filter((s) => s.revealed).length;
   const wrongChain = isConnected && chainId !== CHAIN.id;
@@ -119,12 +143,43 @@ export function useRoundSession(sessionKey = "default") {
     setLog((prev) => [message, ...prev].slice(0, 10));
   }, []);
 
+  const rememberRound = useCallback(
+    (
+      id: bigint,
+      role: RoundHistoryEntry["role"],
+      details?: { status?: string; revealRound?: bigint },
+    ) => {
+      if (!address) return;
+      const key = `tacet:round-history:${address.toLowerCase()}`;
+      const current = storedRoundHistory(address);
+      const previous = current.find(
+        (entry) => entry.roundId === id.toString() && entry.useCase === sessionKey,
+      );
+      const entry: RoundHistoryEntry = {
+        roundId: id.toString(),
+        useCase: sessionKey,
+        role: previous?.role === "created" ? "created" : role,
+        status: details?.status ?? previous?.status ?? "Open",
+        revealRound: details?.revealRound?.toString() ?? previous?.revealRound,
+        updatedAt: Date.now(),
+      };
+      const next = [
+        entry,
+        ...current.filter(
+          (item) => item.roundId !== entry.roundId || item.useCase !== entry.useCase,
+        ),
+      ].slice(0, 50);
+      window.localStorage.setItem(key, JSON.stringify(next));
+      setRoundHistory(next);
+    },
+    [address, sessionKey],
+  );
+
   const selectRound = useCallback((id: bigint | null) => {
     setRoundId(id);
     setLive(null);
     setBidders([]);
     setBidStates({});
-    setCommitValue(null);
     setSealedCiphertext(null);
     if (id == null) {
       window.localStorage.removeItem(storageKey);
@@ -134,7 +189,18 @@ export function useRoundSession(sessionKey = "default") {
   }, [storageKey]);
 
   useEffect(() => {
-    selectRound(storedRoundId(storageKey));
+    setRoundHistory(storedRoundHistory(address));
+  }, [address]);
+
+  useEffect(() => {
+    const stored = storedRoundId(storageKey);
+    const historyOpenKey = `tacet:history-open:${sessionKey}`;
+    const openedFromHistory =
+      stored != null && window.sessionStorage.getItem(historyOpenKey) === stored.toString();
+    window.sessionStorage.removeItem(historyOpenKey);
+    restoringRoundRef.current = stored != null && !openedFromHistory;
+    setRestoringRound(stored != null && !openedFromHistory);
+    selectRound(stored);
     setLog([]);
     setStatus("idle");
   }, [storageKey, selectRound]);
@@ -149,14 +215,41 @@ export function useRoundSession(sessionKey = "default") {
         for (const bidder of list) {
           states[bidder] = await reader.getBidState(id, bidder);
         }
+
+        const now = BigInt(Math.floor(Date.now() / 1000));
+        const walletEscrow = address ? (states[address]?.escrow ?? 0n) : 0n;
+        const expiredWithoutWalletEntry =
+          restoringRoundRef.current &&
+          round.commitDeadline <= now &&
+          (list.length === 0 || (address != null && walletEscrow === 0n));
+
+        if (expiredWithoutWalletEntry) {
+          restoringRoundRef.current = false;
+          selectRound(null);
+          setStatus("idle");
+          setLog([]);
+          setRestoringRound(false);
+          return;
+        }
+
         setLive(round);
         setBidders(list);
         setBidStates(states);
+        if (address && (round.operator === address || walletEscrow > 0n)) {
+          rememberRound(id, round.operator === address ? "created" : "joined", {
+            status: round.status,
+            revealRound: round.revealRound,
+          });
+        }
+        restoringRoundRef.current = false;
+        setRestoringRound(false);
       } catch (e) {
+        restoringRoundRef.current = false;
+        setRestoringRound(false);
         push(displayError(e));
       }
     },
-    [reader, roundId, push],
+    [reader, roundId, address, push, selectRound, rememberRound],
   );
 
   useEffect(() => {
@@ -170,18 +263,38 @@ export function useRoundSession(sessionKey = "default") {
   useEffect(() => {
     if (!address || !publicClient) {
       setTokenBalance(null);
+      setTokenAllowance(null);
       return;
     }
-    void publicClient
-      .readContract({
+    void Promise.all([
+      publicClient.readContract({
         address: TOKEN_ADDRESS,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [address],
+      }),
+      publicClient.readContract({
+        address: TOKEN_ADDRESS,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [address, ROUND_ADDRESS],
+      }),
+    ])
+      .then(([balance, allowance]) => {
+        setTokenBalance(balance);
+        setTokenAllowance(allowance);
       })
-      .then(setTokenBalance)
-      .catch(() => setTokenBalance(null));
+      .catch(() => {
+        setTokenBalance(null);
+        setTokenAllowance(null);
+      });
   }, [address, publicClient, status]);
+
+  useEffect(() => {
+    if (!commitInFlight || status !== "working" || roundId == null || hasCommitted || !commitClosed) return;
+    setStatus("error");
+    push("Commit window closed before the seal was confirmed on-chain. Create a fresh round.");
+  }, [commitInFlight, status, roundId, hasCommitted, commitClosed, push]);
 
   async function connect() {
     setStatus("working");
@@ -246,7 +359,10 @@ export function useRoundSession(sessionKey = "default") {
         account: address,
         ...fees,
       });
-      await publicClient!.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient!.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") {
+        throw new Error("Mint transaction was not confirmed on-chain.");
+      }
       push(`Minted ${formatTokenAmount(amount)} for demo.`);
       setStatus("ok");
     } catch (e) {
@@ -256,17 +372,38 @@ export function useRoundSession(sessionKey = "default") {
     }
   }
 
-  async function createRound(durationSeconds = DEFAULT_COMMIT_DURATION_SECONDS) {
-    if (!client || !address) return;
+  async function createRound(cueDelaySeconds = DEFAULT_COMMIT_DURATION_SECONDS) {
+    if (!client || !address || !walletClient || !publicClient) return;
     setStatus("working");
     try {
+      if ((tokenAllowance ?? 0n) < maxUint256 / 2n) {
+        const fees = await bufferedFees();
+        const approveHash = await walletClient.writeContract({
+          address: TOKEN_ADDRESS,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [ROUND_ADDRESS, maxUint256],
+          chain: CHAIN,
+          account: address,
+          ...fees,
+        });
+        const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        if (approveReceipt.status !== "success") {
+          throw new Error("Token approval was not confirmed on-chain.");
+        }
+        setTokenAllowance(maxUint256);
+        push("Wallet prepared for one-click sealing.");
+      }
+
       const drand = quicknet();
-      const revealInSeconds = durationSeconds + LIVE_COMMIT_CLOSE_BEFORE_REVEAL_SECONDS;
-      const revealRound = await roundInSeconds(drand, revealInSeconds);
+      const revealRound = await roundInSeconds(
+        drand,
+        cueDelaySeconds + LIVE_ROUND_SETUP_BUFFER_SECONDS,
+      );
       const info = await drand.chain().info();
       const tReveal = Number(info.genesis_time) + Number(info.period) * revealRound;
       const commitDeadline = BigInt(tReveal - LIVE_COMMIT_CLOSE_BEFORE_REVEAL_SECONDS);
-      const revealDeadline = BigInt(tReveal + LIVE_REVEAL_WINDOW_AFTER_REVEAL_SECONDS);
+      const revealDeadline = BigInt(tReveal + LIVE_REVEAL_WINDOW_SECONDS);
       const itemRef = itemRefFromString(`tacet:${address}:${Date.now()}`);
       const { roundId: newId, hash } = await client.createRound({
         itemRef,
@@ -275,7 +412,16 @@ export function useRoundSession(sessionKey = "default") {
         commitDeadline,
         revealDeadline,
       });
+      const confirmedRound = await reader.getRound(newId);
+      if (confirmedRound.operator.toLowerCase() !== address.toLowerCase()) {
+        throw new Error(`Round #${newId} was not confirmed for this wallet.`);
+      }
       selectRound(newId);
+      setLive(confirmedRound);
+      rememberRound(newId, "created", {
+        status: confirmedRound.status,
+        revealRound: confirmedRound.revealRound,
+      });
       setStatus("ok");
       push(`Round #${newId} created · R=${revealRound} · tx ${hash.slice(0, 10)}…`);
       await refresh(newId);
@@ -302,6 +448,10 @@ export function useRoundSession(sessionKey = "default") {
         throw new Error(`Round #${parsed} commit window has already closed.`);
       }
       selectRound(parsed);
+      rememberRound(parsed, round.operator === address ? "created" : "joined", {
+        status: round.status,
+        revealRound: round.revealRound,
+      });
       setStatus("ok");
       push(`Joined round #${parsed}.`);
       await refresh(parsed);
@@ -314,10 +464,21 @@ export function useRoundSession(sessionKey = "default") {
 
   async function commitBid() {
     if (!client || !address || roundId == null || !walletClient) return;
+    setCommitInFlight(true);
     setStatus("working");
     try {
       const round = await reader.getRound(roundId);
       const escrow = toTokenUnits(bidAmount);
+      const secondsLeft = Number(round.commitDeadline) - Math.floor(Date.now() / 1000);
+      const needsApproval = (tokenAllowance ?? 0n) < escrow;
+      const minimumSeconds = needsApproval ? 25 : 8;
+      if (secondsLeft < minimumSeconds) {
+        throw new Error(
+          needsApproval
+            ? `Only ${Math.max(0, secondsLeft)}s remain. Token approval + sealing needs at least ${minimumSeconds}s; create a 30 sec or 3 min round.`
+            : `Only ${Math.max(0, secondsLeft)}s remain. Sealing needs at least ${minimumSeconds}s; create a fresh round.`,
+        );
+      }
       const nonce = generateNonce();
       const drand = quicknet();
       const sealed = await sealBid({
@@ -327,20 +488,34 @@ export function useRoundSession(sessionKey = "default") {
         client: drand,
       });
 
-      const fees = await bufferedFees();
-      const approveHash = await walletClient.writeContract({
-        address: TOKEN_ADDRESS,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [ROUND_ADDRESS, escrow],
-        chain: CHAIN,
-        account: address,
-        ...fees,
-      });
-      await publicClient!.waitForTransactionReceipt({ hash: approveHash });
+      if (needsApproval) {
+        const fees = await bufferedFees();
+        const approveHash = await walletClient.writeContract({
+          address: TOKEN_ADDRESS,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [ROUND_ADDRESS, maxUint256],
+          chain: CHAIN,
+          account: address,
+          ...fees,
+        });
+        const approveReceipt = await publicClient!.waitForTransactionReceipt({ hash: approveHash });
+        if (approveReceipt.status !== "success") {
+          throw new Error("Token approval was not confirmed on-chain.");
+        }
+        setTokenAllowance(maxUint256);
+      }
+
+      const commitSecondsLeft = Number(round.commitDeadline) - Math.floor(Date.now() / 1000);
+      if (commitSecondsLeft < 5) {
+        throw new Error("Commit window closed while preparing the seal. Create a fresh round.");
+      }
 
       const hash = await client.commit({ roundId, sealed, escrow });
-      setCommitValue(escrow);
+      const confirmedBid = await reader.getBidState(roundId, address);
+      if (confirmedBid.escrow <= 0n) {
+        throw new Error(`Seal transaction confirmed, but round #${roundId} has no on-chain bid.`);
+      }
       setSealedCiphertext(sealed.ciphertext);
       setStatus("ok");
       push(`Sealed ${formatTokenAmount(escrow)} · tx ${hash.slice(0, 10)}…`);
@@ -349,6 +524,8 @@ export function useRoundSession(sessionKey = "default") {
       const msg = displayError(e);
       setStatus("error");
       push(msg);
+    } finally {
+      setCommitInFlight(false);
     }
   }
 
@@ -452,6 +629,12 @@ export function useRoundSession(sessionKey = "default") {
     }
   }
 
+  function openHistoryRound(id: string) {
+    restoringRoundRef.current = false;
+    setRestoringRound(false);
+    selectRound(BigInt(id));
+  }
+
   return {
     address,
     isConnected,
@@ -460,9 +643,12 @@ export function useRoundSession(sessionKey = "default") {
     bidAmount,
     setBidAmount,
     roundId,
+    restoringRound,
+    roundHistory,
     status,
     log,
     tokenBalance,
+    tokenAllowance,
     live,
     bidders,
     bidStates,
@@ -486,6 +672,7 @@ export function useRoundSession(sessionKey = "default") {
     openAndReveal,
     finalizeRound,
     leaveRound: () => selectRound(null),
+    openHistoryRound,
     refresh,
     formatCountdown,
   };

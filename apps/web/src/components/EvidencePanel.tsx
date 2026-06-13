@@ -28,6 +28,15 @@ interface Evidence {
 }
 
 const STATUS_FLOW = ["Open", "Commit", "Sealed", "Drand cue", "Reveal", "Clear", "Settle"] as const;
+const STATUS_DETAILS = [
+  ["Round opened", "A new coordination window is published on Arbitrum."],
+  ["Commit window", "Agents independently prepare and encrypt their decisions."],
+  ["Values sealed", "Ciphertexts and escrow are on-chain, while values remain unreadable."],
+  ["Shared cue", "Drand publishes the neutral public signal that unlocks the round."],
+  ["Reveal window", "Sealed decisions open together for public verification."],
+  ["Outcome cleared", "The contract deterministically selects the valid outcome."],
+  ["Funds settled", "Payment and refunds complete on Arbitrum."],
+] as const;
 
 export function EvidencePanel() {
   const [deployment, setDeployment] = useState<Deployment | null>(null);
@@ -88,11 +97,23 @@ export function EvidencePanel() {
           <h2>Live deployment</h2>
           <dl>
             <dt>Network</dt>
-            <dd>Arbitrum Sepolia (421614)</dd>
+            <dd><span className="network-live-dot" />Arbitrum Sepolia <small>421614</small></dd>
             <dt>Round contract</dt>
-            <dd className="mono">{deployment?.roundAddress ?? "—"}</dd>
+            <dd className="mono">
+              {deployment?.explorer?.round ? (
+                <a href={deployment.explorer.round} target="_blank" rel="noreferrer">
+                  {deployment.roundAddress ?? "—"} <span>↗</span>
+                </a>
+              ) : deployment?.roundAddress ?? "—"}
+            </dd>
             <dt>Demo token</dt>
-            <dd className="mono">{deployment?.tokenAddress ?? "—"}</dd>
+            <dd className="mono">
+              {deployment?.explorer?.token ? (
+                <a href={deployment.explorer.token} target="_blank" rel="noreferrer">
+                  {deployment.tokenAddress ?? "—"} <span>↗</span>
+                </a>
+              ) : deployment?.tokenAddress ?? "—"}
+            </dd>
             <dt>Round ID</dt>
             <dd>{deployment?.roundId ?? "—"}</dd>
             <dt>Drand reveal round</dt>
@@ -107,13 +128,26 @@ export function EvidencePanel() {
 
         <article className="panel lifecycle">
           <h2>Round lifecycle</h2>
-          <div className="steps">
+          <div className="steps lifecycle-steps">
             {STATUS_FLOW.map((s, i) => (
-              <div key={s} className={`step ${i === phase ? "active" : ""} ${i < phase ? "done" : ""}`}>
+              <button
+                key={s}
+                type="button"
+                className={`step ${i === phase ? "active" : ""} ${i < phase ? "done" : ""}`}
+                aria-pressed={i === phase}
+                onClick={() => setPhase(i)}
+              >
                 <span className="dot" />
                 {s}
-              </div>
+              </button>
             ))}
+          </div>
+          <div className="lifecycle-detail" key={phase}>
+            <span>{String(phase + 1).padStart(2, "0")} / 07</span>
+            <div>
+              <strong>{STATUS_DETAILS[phase][0]}</strong>
+              <p>{STATUS_DETAILS[phase][1]}</p>
+            </div>
           </div>
           <p className="status">
             Status: <strong>{finalStatus}</strong> {revealed ? `· ${revealed} bids revealed` : ""}

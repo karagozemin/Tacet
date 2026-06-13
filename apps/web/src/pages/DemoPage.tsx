@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { zeroAddress } from "viem";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { SimulatedAgentStage } from "../components/SimulatedAgentStage";
@@ -12,9 +12,10 @@ import {
   formatTokenAmount,
 } from "../config/chain";
 import { useRoundSession } from "../hooks/useRoundSession";
+import type { RoundHistoryEntry } from "../hooks/useRoundSession";
 import { shortAddr } from "../lib/format";
 
-type DemoMode = "live" | "evidence";
+type DemoMode = "live" | "history" | "evidence";
 type UseCaseId = "auction" | "procurement" | "coordination" | "rfq";
 
 const USE_CASES = [
@@ -99,21 +100,29 @@ const USE_CASES = [
 function FlowSteps({
   address,
   roundId,
+  roundConfirmed,
   committed,
   revealed,
+  commitClosed,
   working,
   useCase,
 }: {
   address: string | null;
   roundId: bigint | null;
+  roundConfirmed: boolean;
   committed: boolean;
   revealed: boolean;
+  commitClosed: boolean;
   working: boolean;
   useCase: (typeof USE_CASES)[number];
 }) {
   const steps = [
     { label: "Wallet", detail: address ? shortAddr(address) : "connect", done: Boolean(address) },
-    { label: "Round", detail: roundId == null ? "create" : `#${roundId}`, done: roundId != null },
+    {
+      label: "Round",
+      detail: roundId == null ? "create" : roundConfirmed ? `#${roundId}` : "confirming",
+      done: roundConfirmed,
+    },
     { label: useCase.commitStep, detail: committed ? "on-chain" : "commit", done: committed },
     { label: useCase.revealStep, detail: revealed ? "opened" : "after R", done: revealed },
   ];
@@ -122,13 +131,14 @@ function FlowSteps({
   return (
     <section className={`flow-steps ${working ? "working" : ""}`}>
       {steps.map((step, index) => {
-        const state = step.done ? "done" : index === activeIndex ? "active" : "idle";
+        const expired = index === 2 && roundConfirmed && !committed && commitClosed;
+        const state = step.done ? "done" : expired ? "expired" : index === activeIndex ? "active" : "idle";
         return (
           <div key={step.label} className={`flow-step ${state}`}>
-            <span>{step.done ? "✓" : index + 1}</span>
+            <span>{step.done ? "✓" : expired ? "×" : working && state === "active" ? "…" : index + 1}</span>
             <div>
               <strong>{step.label}</strong>
-              <small>{step.detail}</small>
+              <small>{expired ? "window closed" : working && state === "active" ? "confirming on-chain" : step.detail}</small>
             </div>
           </div>
         );
@@ -200,6 +210,7 @@ function LivePanel({
   let ctaLabel = "Connect MetaMask";
   let cta: () => void = () => void connect();
   let ctaDisabled = working;
+  let showCta = true;
   let showBidInput = false;
 
   if (wrongChain) {
@@ -219,8 +230,7 @@ function LivePanel({
     title = "Choose your entrance";
     detail = "Create a fresh sealed round or enter a round number shared by another bidder.";
     timerValue = "lobby";
-    ctaLabel = "Create new round";
-    cta = () => void createRound(duration);
+    showCta = false;
   } else if (roundId != null && !hasCommitted && !commitClosed) {
     tone = "urgent";
     if ((tokenBalance ?? 0n) < BigInt(bidAmount * 1_000_000)) {
@@ -230,12 +240,12 @@ function LivePanel({
       cta = () => void mintDemoTokens();
     } else {
       title = useCase.commitTitle;
-      detail = useCase.commitDetail;
+      detail = `${useCase.commitDetail} Seal before the selected Drand cue arrives.`;
       ctaLabel = useCase.actionLabel;
       cta = () => void commitBid();
     }
-    timerLabel = "Time left";
-    timerValue = formatCountdown(commitSecondsRemaining ?? 0);
+    timerLabel = "Seal phase";
+    timerValue = "open";
     showBidInput = true;
   } else if (roundId != null && !hasCommitted && commitClosed) {
     tone = "danger";
@@ -284,7 +294,7 @@ function LivePanel({
     tone = "wait";
     title = `${useCase.commitStep} complete`;
     detail = "Your private decision is committed. Waiting for the shared Drand cue.";
-    timerLabel = "Commit closes in";
+    timerLabel = "Drand cue in";
     timerValue = formatCountdown(commitSecondsRemaining ?? 0);
     ctaLabel = "Waiting…";
     ctaDisabled = true;
@@ -355,8 +365,10 @@ function LivePanel({
       <FlowSteps
         address={address ?? null}
         roundId={roundId}
+        roundConfirmed={live != null}
         committed={hasCommitted}
         revealed={revealedCount > 0}
+        commitClosed={commitClosed}
         working={working}
         useCase={useCase}
       />
@@ -417,14 +429,21 @@ function LivePanel({
             <small>{timerLabel}</small>
             <b>{timerValue}</b>
           </div>
-          <button
-            type="button"
-            className="phase-cta primary-action large"
-            onClick={cta}
-            disabled={ctaDisabled}
-          >
-            {ctaLabel}
-          </button>
+          {showCta ? (
+            <button
+              type="button"
+              className="phase-cta primary-action large"
+              onClick={cta}
+              disabled={ctaDisabled}
+            >
+              {ctaLabel}
+            </button>
+          ) : (
+            <div className="lobby-direction">
+              <span>Choose below</span>
+              <strong>Create or join</strong>
+            </div>
+          )}
         </div>
       </section>
 
@@ -435,9 +454,9 @@ function LivePanel({
               <span className="lobby-number">01</span>
               <p className="eyebrow">Lead the round</p>
               <h2>Create {useCase.roundNoun}</h2>
-              <p>Choose how long {useCase.participantNoun}s stay silent, then share the round number.</p>
+              <p>Create and seal normally. The selected target countdown is shown after sealing.</p>
               <div className="duration-picker">
-                <label>Commit window</label>
+                <label>Target reveal after seal</label>
                 <div className="duration-chips">
                   {COMMIT_DURATION_PRESETS.map((preset) => (
                     <button
@@ -601,11 +620,98 @@ function LivePanel({
   );
 }
 
+function RoundHistoryPanel({
+  entries,
+  onOpen,
+}: {
+  entries: RoundHistoryEntry[];
+  onOpen: (entry: RoundHistoryEntry) => void;
+}) {
+  return (
+    <div className="round-history-page">
+      <section className="case-hero">
+        <div>
+          <p className="eyebrow">Wallet activity</p>
+          <h1>round history</h1>
+          <p className="lede">Every sealed round this wallet created or entered on this device.</p>
+        </div>
+        <div className="history-count">
+          <span>rounds</span>
+          <strong>{entries.length}</strong>
+        </div>
+      </section>
+
+      {entries.length === 0 ? (
+        <section className="history-empty">
+          <span>00</span>
+          <h2>No rounds recorded yet.</h2>
+          <p>Create or join a sealed round and it will appear here.</p>
+        </section>
+      ) : (
+        <section className="history-list">
+          {entries.map((entry) => {
+            const useCase = USE_CASES.find((item) => item.id === entry.useCase) ?? USE_CASES[0];
+            return (
+              <button
+                key={`${entry.useCase}-${entry.roundId}`}
+                type="button"
+                className="history-card"
+                data-case={entry.useCase}
+                onClick={() => onOpen(entry)}
+              >
+                <span className="history-index">#{entry.roundId}</span>
+                <div className="history-main">
+                  <span>{useCase.label}</span>
+                  <strong>{entry.role === "created" ? `Created ${useCase.roundNoun}` : `Joined as ${useCase.participantNoun}`}</strong>
+                  <small>
+                    {entry.revealRound ? `Drand R ${entry.revealRound} · ` : ""}
+                    {new Date(entry.updatedAt).toLocaleString()}
+                  </small>
+                </div>
+                <span className={`history-status status-${entry.status.toLowerCase()}`}>
+                  {entry.status}
+                </span>
+                <b aria-hidden="true">→</b>
+              </button>
+            );
+          })}
+        </section>
+      )}
+    </div>
+  );
+}
+
 export function DemoPage({ goHome }: { goHome: () => void }) {
   const [mode, setMode] = useState<DemoMode>("live");
   const [useCaseId, setUseCaseId] = useState<UseCaseId>("auction");
+  const [sceneEntering, setSceneEntering] = useState(true);
   const session = useRoundSession(useCaseId);
   const useCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
+
+  function openHistoryRound(entry: RoundHistoryEntry) {
+    const historyUseCase = USE_CASES.find((item) => item.id === entry.useCase);
+    if (!historyUseCase) return;
+    window.localStorage.setItem(`tacet:round-id:${historyUseCase.id}`, entry.roundId);
+    if (historyUseCase.id === useCaseId) {
+      session.openHistoryRound(entry.roundId);
+    } else {
+      window.sessionStorage.setItem(`tacet:history-open:${historyUseCase.id}`, entry.roundId);
+    }
+    setUseCaseId(historyUseCase.id);
+    setMode("live");
+  }
+
+  useLayoutEffect(() => {
+    setSceneEntering(false);
+    let enterFrame = 0;
+    const frame = window.requestAnimationFrame(() => {
+      enterFrame = window.requestAnimationFrame(() => setSceneEntering(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(enterFrame);
+    };
+  }, [mode, useCaseId]);
 
   return (
     <main className="app-page">
@@ -624,7 +730,18 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
               className={mode === "live" ? "active" : ""}
               onClick={() => setMode("live")}
             >
-              Live round
+              <span>Live round</span>
+              <small>run</small>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "history"}
+              className={mode === "history" ? "active" : ""}
+              onClick={() => setMode("history")}
+            >
+              <span>History</span>
+              <small>{session.roundHistory.length}</small>
             </button>
             <button
               type="button"
@@ -633,7 +750,8 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
               className={mode === "evidence" ? "active" : ""}
               onClick={() => setMode("evidence")}
             >
-              Evidence
+              <span>Evidence</span>
+              <small>verify</small>
             </button>
           </div>
 
@@ -647,6 +765,8 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
                 key={item.id}
                 type="button"
                 className={useCaseId === item.id ? "active" : ""}
+                aria-current={useCaseId === item.id ? "page" : undefined}
+                data-case={item.id}
                 onClick={() => {
                   setUseCaseId(item.id);
                   setMode("live");
@@ -657,6 +777,7 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
                   <strong>{item.label}</strong>
                   <small>{item.payoff}</small>
                 </div>
+                <b aria-hidden="true">→</b>
               </button>
             ))}
           </nav>
@@ -679,8 +800,31 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
           ) : null}
         </aside>
 
-        <section className="case-workspace">
-          {mode === "live" ? <LivePanel session={session} useCase={useCase} /> : <EvidencePanel />}
+        <section
+          className={`case-workspace ${sceneEntering ? "scene-entering" : ""}`}
+          data-case={useCaseId}
+        >
+          <div className="case-scene">
+            {mode === "live" ? (
+              session.restoringRound ? (
+                <section className="session-restoring" aria-live="polite">
+                  <div className="session-restoring-cue">
+                    <img src={LOGO_SRC} alt="" />
+                    <span />
+                  </div>
+                  <p className="eyebrow">Checking saved round</p>
+                  <h2>Preparing your session.</h2>
+                  <p>Verifying that the previous round is still open for this wallet.</p>
+                </section>
+              ) : (
+                <LivePanel session={session} useCase={useCase} />
+              )
+            ) : mode === "history" ? (
+              <RoundHistoryPanel entries={session.roundHistory} onOpen={openHistoryRound} />
+            ) : (
+              <EvidencePanel />
+            )}
+          </div>
         </section>
       </section>
     </main>
