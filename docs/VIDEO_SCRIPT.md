@@ -2,7 +2,7 @@
 
 ## Scene 1 — Title (5s)
 
-Visual: Tacet logo, tagline "Every agent enters on cue."
+Visual: `assets/brand/tacet.png` — Tacet logo, tagline "Every agent enters on cue."
 
 VO: *Tacet — sealed coordination for autonomous agents on Arbitrum.*
 

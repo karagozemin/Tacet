@@ -1,5 +1,9 @@
 # HackQuest Submission — Tacet
 
+<p align="center">
+  <img src="../assets/brand/tacet.png" alt="Tacet" width="120" />
+</p>
+
 ## Project name
 
 **Tacet**
