@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { EvidencePanel } from "../components/EvidencePanel";
+import { SimulatedAgentStage } from "../components/SimulatedAgentStage";
 import {
   COMMIT_DURATION_PRESETS,
   DEFAULT_COMMIT_DURATION_SECONDS,
@@ -236,13 +237,15 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
               Disconnect
             </button>
           ) : null}
-          <button
-            type="button"
-            className="primary-action"
-            onClick={() => void (wrongChain ? switchNetwork() : connect())}
-          >
-            {wrongChain ? "Switch network" : isConnected ? "Reconnect" : "Connect MetaMask"}
-          </button>
+          {!isConnected || wrongChain ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={() => void (wrongChain ? switchNetwork() : connect())}
+            >
+              {wrongChain ? "Switch network" : "Connect MetaMask"}
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -385,6 +388,13 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
             </button>
           </section>
         )
+      ) : null}
+
+      {roundId != null ? (
+        <SimulatedAgentStage
+          roundId={roundId}
+          revealTriggered={revealedCount > 0 || live?.status === "Revealing"}
+        />
       ) : null}
 
       {revealProgress ? (

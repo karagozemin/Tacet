@@ -331,6 +331,128 @@ dd { margin: 0; }
 .round-toolbar span, .round-toolbar small { color: var(--muted); font-size: 0.72rem; }
 .round-toolbar strong { margin: 0 0.5rem; font-family: var(--mono); color: var(--accent2); }
 
+.agent-stage {
+  position: relative; overflow: hidden; margin-bottom: 1rem; padding: 1.1rem;
+  border: 1px solid var(--line); border-radius: 18px;
+  background:
+    radial-gradient(600px 240px at 50% -20%, rgba(107,79,212,0.19), transparent 65%),
+    rgba(255,255,255,0.015);
+}
+.agent-stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.22;
+  background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+.agent-stage-header {
+  position: relative; display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+.agent-stage-header h2 {
+  margin: 0; font-family: var(--serif); font-size: 1.75rem; font-weight: 400;
+}
+.agent-stage-header p:not(.eyebrow) {
+  max-width: 62ch; margin: 0.35rem 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5;
+}
+.agent-stage-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.simulation-badge {
+  padding: 0.25rem 0.5rem; border: 1px solid #875a49; border-radius: 999px;
+  color: #d78964; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.arrival-line { position: relative; height: 2px; margin: 0.8rem 0 1rem; background: var(--line); }
+.arrival-line span {
+  display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #54a7c7, #d78964);
+  box-shadow: 0 0 18px var(--accent); transition: width 650ms cubic-bezier(.22,.8,.25,1);
+}
+.sim-agent-grid {
+  position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem;
+  perspective: 1200px;
+}
+.sim-agent-card {
+  --agent-color: var(--accent2);
+  min-height: 230px; opacity: 0; transform: translateY(22px) scale(0.97);
+  transition: opacity 500ms ease, transform 650ms cubic-bezier(.2,.8,.2,1), filter 400ms ease;
+}
+.sim-agent-card.arrived { opacity: 1; transform: translateY(0) scale(1); }
+.sim-agent-card.queued { pointer-events: none; }
+.sim-agent-card-inner {
+  position: relative; width: 100%; min-height: 230px; transform-style: preserve-3d;
+  transition: transform 900ms cubic-bezier(.2,.72,.15,1);
+}
+.sim-agent-card.revealed .sim-agent-card-inner { transform: rotateY(180deg); }
+.sim-agent-face {
+  position: absolute; inset: 0; padding: 0.9rem; backface-visibility: hidden;
+  border: 1px solid color-mix(in srgb, var(--agent-color) 38%, var(--line)); border-radius: 14px;
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--agent-color) 10%, transparent), transparent 60%),
+    #111219;
+}
+.sim-agent-face header { display: flex; gap: 0.55rem; align-items: center; }
+.sim-agent-face header > div { min-width: 0; flex: 1; }
+.sim-agent-face header strong { display: block; font-size: 0.85rem; }
+.sim-agent-face header small { display: block; color: var(--muted); font-family: var(--mono); font-size: 0.62rem; }
+.agent-avatar {
+  width: 2rem; height: 2rem; display: grid; place-items: center; flex-shrink: 0;
+  border: 1px solid var(--agent-color); border-radius: 50%; color: var(--agent-color);
+  font-family: var(--mono); font-size: 0.66rem; box-shadow: 0 0 18px color-mix(in srgb, var(--agent-color) 22%, transparent);
+}
+.agent-state {
+  color: var(--agent-color); font-family: var(--mono); font-size: 0.58rem; text-transform: uppercase;
+}
+.cipher-field {
+  margin-top: 1rem; padding: 0.7rem; border: 1px dashed var(--line); border-radius: 10px;
+  background: rgba(0,0,0,0.18);
+}
+.cipher-field span, .revealed-value span {
+  display: block; color: var(--muted); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.cipher-field strong {
+  display: block; margin-top: 0.25rem; color: var(--agent-color); font-family: var(--mono); font-size: 0.72rem;
+}
+.cipher-bars { display: flex; gap: 0.2rem; height: 22px; align-items: center; margin-top: 0.55rem; }
+.cipher-bars i {
+  display: block; width: 20%; height: 25%; border-radius: 2px; background: var(--agent-color); opacity: 0.45;
+  animation: cipher-signal 1.4s ease-in-out infinite alternate;
+}
+.cipher-bars i:nth-child(2) { animation-delay: -0.6s; }
+.cipher-bars i:nth-child(3) { animation-delay: -0.2s; }
+.cipher-bars i:nth-child(4) { animation-delay: -0.9s; }
+.cipher-bars i:nth-child(5) { animation-delay: -0.4s; }
+@keyframes cipher-signal { to { height: 100%; opacity: 0.9; } }
+.sim-agent-sealed footer {
+  display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.7rem;
+  color: var(--muted); font-size: 0.62rem;
+}
+.sim-agent-revealed {
+  transform: rotateY(180deg);
+  background:
+    radial-gradient(220px 150px at 50% 60%, color-mix(in srgb, var(--agent-color) 18%, transparent), transparent 72%),
+    #111219;
+}
+.revealed-value { margin-top: 1.15rem; text-align: center; }
+.revealed-value strong {
+  display: inline-block; margin-top: 0.2rem; color: var(--agent-color); font-family: var(--serif);
+  font-size: 3.3rem; line-height: 1; text-shadow: 0 0 30px color-mix(in srgb, var(--agent-color) 38%, transparent);
+}
+.revealed-value small { margin-left: 0.35rem; color: var(--muted); font-family: var(--mono); font-size: 0.65rem; }
+.sim-agent-revealed p { margin: 0.8rem 0 0; color: var(--muted); font-size: 0.7rem; line-height: 1.45; text-align: center; }
+.sim-agent-card.winner { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--agent-color) 45%, transparent)); }
+.sim-agent-card.winner .sim-agent-revealed {
+  border-color: var(--agent-color); animation: winner-pulse 1.5s ease-in-out infinite;
+}
+@keyframes winner-pulse {
+  50% { box-shadow: inset 0 0 30px color-mix(in srgb, var(--agent-color) 16%, transparent), 0 0 18px color-mix(in srgb, var(--agent-color) 18%, transparent); }
+}
+.stage-footnote {
+  position: relative; display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.8rem;
+  color: var(--muted); font-family: var(--mono); font-size: 0.62rem;
+}
+@media (max-width: 900px) {
+  .agent-stage-header { flex-direction: column; }
+  .agent-stage-actions { width: 100%; justify-content: space-between; }
+  .sim-agent-grid { grid-template-columns: 1fr; }
+  .stage-footnote { flex-direction: column; gap: 0.25rem; }
+}
+
 .live-state {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 1rem;
 }

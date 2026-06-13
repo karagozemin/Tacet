@@ -8,6 +8,6 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "viem"],
   },
   optimizeDeps: {
-    include: ["@tacet/sdk", "@tacet/tlock", "wagmi", "viem"],
+    include: ["@tacet/sdk", "@tacet/tlock", "buffer", "wagmi", "viem"],
   },
 });

@@ -196,11 +196,28 @@ export function useRoundSession() {
     }
   }
 
+  async function bufferedFees() {
+    if (!publicClient) throw new Error("Arbitrum RPC client unavailable.");
+    const [block, estimate] = await Promise.all([
+      publicClient.getBlock({ blockTag: "latest" }),
+      publicClient.estimateFeesPerGas({ type: "eip1559" }),
+    ]);
+    const priority = estimate.maxPriorityFeePerGas;
+    const baseFee = block.baseFeePerGas ?? estimate.maxFeePerGas;
+    const bufferedMaxFee = baseFee * 2n + priority;
+    return {
+      maxFeePerGas:
+        bufferedMaxFee > estimate.maxFeePerGas ? bufferedMaxFee : estimate.maxFeePerGas,
+      maxPriorityFeePerGas: priority,
+    };
+  }
+
   async function mintDemoTokens() {
     if (!client || !walletClient || !address) return;
     setStatus("working");
     try {
       const amount = toTokenUnits(1000);
+      const fees = await bufferedFees();
       const hash = await walletClient.writeContract({
         address: TOKEN_ADDRESS,
         abi: erc20Abi,
@@ -208,6 +225,7 @@ export function useRoundSession() {
         args: [address, amount],
         chain: CHAIN,
         account: address,
+        ...fees,
       });
       await publicClient!.waitForTransactionReceipt({ hash });
       push(`Minted ${formatTokenAmount(amount)} for demo.`);
@@ -290,6 +308,7 @@ export function useRoundSession() {
         client: drand,
       });
 
+      const fees = await bufferedFees();
       const approveHash = await walletClient.writeContract({
         address: TOKEN_ADDRESS,
         abi: erc20Abi,
@@ -297,6 +316,7 @@ export function useRoundSession() {
         args: [ROUND_ADDRESS, escrow],
         chain: CHAIN,
         account: address,
+        ...fees,
       });
       await publicClient!.waitForTransactionReceipt({ hash: approveHash });
 

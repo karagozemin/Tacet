@@ -2,8 +2,10 @@ import {
   createPublicClient,
   createWalletClient,
   encodePacked,
+  fromHex,
   http,
   keccak256,
+  toHex,
   type Address,
   type Chain,
   type Hash,
@@ -143,8 +145,8 @@ export class TacetClient {
       args: [roundId, bidder],
     })) as readonly [Hex, Hex];
     return {
-      ciphertext: new Uint8Array(Buffer.from(ciphertext.slice(2), "hex")),
-      auditorBlob: new Uint8Array(Buffer.from(auditorBlob.slice(2), "hex")),
+      ciphertext: fromHex(ciphertext, "bytes"),
+      auditorBlob: fromHex(auditorBlob, "bytes"),
     };
   }
 
@@ -155,8 +157,24 @@ export class TacetClient {
     return { wallet: this.wallet, account };
   }
 
+  private async bufferedFees() {
+    const [block, estimate] = await Promise.all([
+      this.public.getBlock({ blockTag: "latest" }),
+      this.public.estimateFeesPerGas({ chain: this.config.chain, type: "eip1559" }),
+    ]);
+    const priority = estimate.maxPriorityFeePerGas;
+    const baseFee = block.baseFeePerGas ?? estimate.maxFeePerGas;
+    const bufferedMaxFee = baseFee * 2n + priority;
+    return {
+      maxFeePerGas:
+        bufferedMaxFee > estimate.maxFeePerGas ? bufferedMaxFee : estimate.maxFeePerGas,
+      maxPriorityFeePerGas: priority,
+    };
+  }
+
   async createRound(params: CreateRoundParams): Promise<{ roundId: bigint; hash: Hash }> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const rule = params.clearingRule === "LowestBid" ? 1 : 0;
     const hash = await wallet.writeContract({
       address: this.roundAddress,
@@ -171,6 +189,7 @@ export class TacetClient {
       ],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     const next = (await this.public.readContract({
@@ -183,6 +202,7 @@ export class TacetClient {
 
   async commit(params: CommitParams): Promise<Hash> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -190,14 +210,13 @@ export class TacetClient {
       args: [
         params.roundId,
         params.sealed.commitmentHex,
-        `0x${Buffer.from(params.sealed.ciphertext).toString("hex")}`,
-        params.sealed.auditorBlob.length
-          ? (`0x${Buffer.from(params.sealed.auditorBlob).toString("hex")}` as Hex)
-          : "0x",
+        toHex(params.sealed.ciphertext),
+        params.sealed.auditorBlob.length ? toHex(params.sealed.auditorBlob) : "0x",
         params.escrow,
       ],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     return hash;
@@ -205,6 +224,7 @@ export class TacetClient {
 
   async openReveal(roundId: bigint): Promise<Hash> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -212,6 +232,7 @@ export class TacetClient {
       args: [roundId],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     return hash;
@@ -219,6 +240,7 @@ export class TacetClient {
 
   async reveal(params: RevealParams): Promise<Hash> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -226,6 +248,7 @@ export class TacetClient {
       args: [params.roundId, params.bidder, params.value, params.nonce],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     return hash;
@@ -233,6 +256,7 @@ export class TacetClient {
 
   async clear(roundId: bigint): Promise<{ winner?: Address; winningBid: bigint; hash: Hash }> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -240,6 +264,7 @@ export class TacetClient {
       args: [roundId],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     const round = await this.getRound(roundId);
@@ -252,6 +277,7 @@ export class TacetClient {
 
   async settle(roundId: bigint): Promise<Hash> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -259,6 +285,7 @@ export class TacetClient {
       args: [roundId],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     return hash;
@@ -266,6 +293,7 @@ export class TacetClient {
 
   async voidRound(roundId: bigint): Promise<Hash> {
     const { wallet, account } = this.requireWallet();
+    const fees = await this.bufferedFees();
     const hash = await wallet.writeContract({
       address: this.roundAddress,
       abi: tacetRoundAbi,
@@ -273,6 +301,7 @@ export class TacetClient {
       args: [roundId],
       account,
       chain: this.config.chain,
+      ...fees,
     });
     await this.public.waitForTransactionReceipt({ hash });
     return hash;

@@ -50,8 +50,20 @@ export function displayError(error: unknown): string {
   if (message.includes("User rejected")) {
     return "Transaction rejected in wallet.";
   }
+  if (message.includes("Connector already connected")) {
+    return "Wallet is already connected.";
+  }
+  if (message.includes("Buffer is not defined")) {
+    return "Encryption runtime was stale. Restart the Tacet web dev server and retry.";
+  }
   if (message.includes("insufficient funds")) {
     return "Insufficient ETH for gas on Arbitrum Sepolia.";
+  }
+  if (
+    message.includes("max fee per gas less than block base fee") ||
+    message.includes("FeeCapTooLow")
+  ) {
+    return "Arbitrum base fee moved before submission. Retry the action; Tacet will use a fresh buffered fee.";
   }
   return message.length > 180 ? `${message.slice(0, 180)}…` : message;
 }

@@ -1,0 +1,6 @@
+import { Buffer } from "buffer";
+
+// tlock-js still references the Node global on one browser encryption path.
+if (!("Buffer" in globalThis)) {
+  (globalThis as typeof globalThis & { Buffer: typeof Buffer }).Buffer = Buffer;
+}
