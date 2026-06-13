@@ -91,15 +91,15 @@ export function SimulatedAgentStage({
     <section className={`agent-stage ${revealing ? "revealing" : ""}`}>
       <header className="agent-stage-header">
         <div>
-          <p className="eyebrow">Agent arrival theatre · visual simulation</p>
+          <p className="eyebrow">Scenario preview · autonomous market</p>
           <h2>{revealing ? "The cue has sounded." : "Agents enter in silence."}</h2>
           <p>
-            Simulated agents illustrate the experience. Their values stay hidden behind Drand-style
-            ciphertext until reveal.
+            A jury-facing preview of the multi-agent market experience. Values stay hidden behind
+            Drand-style ciphertext until the cue.
           </p>
         </div>
         <div className="agent-stage-actions">
-          <span className="simulation-badge">not on-chain</span>
+          <span className="simulation-badge">scenario preview</span>
           <button
             type="button"
             className="secondary-action"
@@ -181,8 +181,8 @@ export function SimulatedAgentStage({
       </div>
 
       <footer className="stage-footnote">
-        <span>{visibleCount} / {agents.length} simulated agents arrived</span>
-        <span>Real on-chain bidders remain listed separately below.</span>
+        <span>{visibleCount} / {agents.length} preview agents arrived</span>
+        <span>Live protocol state and on-chain bidder count are shown separately.</span>
       </footer>
     </section>
   );

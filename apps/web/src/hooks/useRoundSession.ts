@@ -29,7 +29,17 @@ import { formatCountdown, useDrandCountdown } from "./useDrandCountdown";
 
 export type ActionStatus = "idle" | "working" | "ok" | "error";
 
-export function useRoundSession() {
+function storedRoundId(storageKey: string): bigint | null {
+  const saved = window.localStorage.getItem(storageKey);
+  try {
+    return saved ? BigInt(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function useRoundSession(sessionKey = "default") {
+  const storageKey = `tacet:round-id:${sessionKey}`;
   const { address, isConnected, chainId } = useAccount();
   const { connectAsync, connectors } = useConnect();
   const { disconnect } = useDisconnect();
@@ -40,12 +50,15 @@ export function useRoundSession() {
   const [walletStatus, setWalletStatus] = useState("Connect MetaMask on Arbitrum Sepolia.");
   const [bidAmount, setBidAmount] = useState(50);
   const [roundId, setRoundId] = useState<bigint | null>(() => {
-    const saved = window.localStorage.getItem("tacet:round-id");
-    try {
-      return saved ? BigInt(saved) : null;
-    } catch {
-      return null;
+    const scoped = storedRoundId(storageKey);
+    if (scoped != null) return scoped;
+    if (sessionKey !== "auction") return null;
+    const legacy = storedRoundId("tacet:round-id");
+    if (legacy != null) {
+      window.localStorage.setItem(storageKey, legacy.toString());
+      window.localStorage.removeItem("tacet:round-id");
     }
+    return legacy;
   });
   const [commitValue, setCommitValue] = useState<bigint | null>(null);
   const [sealedCiphertext, setSealedCiphertext] = useState<Uint8Array | null>(null);
@@ -114,11 +127,17 @@ export function useRoundSession() {
     setCommitValue(null);
     setSealedCiphertext(null);
     if (id == null) {
-      window.localStorage.removeItem("tacet:round-id");
+      window.localStorage.removeItem(storageKey);
     } else {
-      window.localStorage.setItem("tacet:round-id", id.toString());
+      window.localStorage.setItem(storageKey, id.toString());
     }
-  }, []);
+  }, [storageKey]);
+
+  useEffect(() => {
+    selectRound(storedRoundId(storageKey));
+    setLog([]);
+    setStatus("idle");
+  }, [storageKey, selectRound]);
 
   const refresh = useCallback(
     async (id = roundId) => {

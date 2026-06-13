@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { zeroAddress } from "viem";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { SimulatedAgentStage } from "../components/SimulatedAgentStage";
 import {
@@ -14,6 +15,49 @@ import { useRoundSession } from "../hooks/useRoundSession";
 import { shortAddr } from "../lib/format";
 
 type DemoMode = "live" | "evidence";
+type UseCaseId = "auction" | "procurement" | "coordination" | "rfq";
+
+const USE_CASES = [
+  {
+    id: "auction",
+    index: "01",
+    label: "Agent auction",
+    title: "sealed coordination",
+    description: "Agents bid privately, wait for Drand, then reveal and settle together.",
+    payoff: "Stops copy-bidding",
+  },
+  {
+    id: "procurement",
+    index: "02",
+    label: "Private procurement",
+    title: "private procurement",
+    description: "Supplier agents submit sealed quotes without anchoring to competitors.",
+    payoff: "Fair supplier pricing",
+  },
+  {
+    id: "coordination",
+    index: "03",
+    label: "Agent coordination",
+    title: "coordinated intent",
+    description: "Agents commit to strategies before a shared public execution cue.",
+    payoff: "No reactive decisions",
+  },
+  {
+    id: "rfq",
+    index: "04",
+    label: "Private RFQ",
+    title: "sealed request for quote",
+    description: "Market makers answer an RFQ without leaking prices before close.",
+    payoff: "Protects price intent",
+  },
+] as const satisfies ReadonlyArray<{
+  id: UseCaseId;
+  index: string;
+  label: string;
+  title: string;
+  description: string;
+  payoff: string;
+}>;
 
 function FlowSteps({
   address,
@@ -54,7 +98,13 @@ function FlowSteps({
   );
 }
 
-function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> }) {
+function LivePanel({
+  session,
+  useCase,
+}: {
+  session: ReturnType<typeof useRoundSession>;
+  useCase: (typeof USE_CASES)[number];
+}) {
   const {
     address,
     isConnected,
@@ -150,8 +200,16 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
     cta = () => void createRound(duration);
   } else if (live?.status === "Settled" || live?.status === "Voided") {
     tone = "complete";
-    title = "Round complete";
-    detail = `${revealedCount} bid(s) revealed. Winner: ${live?.winner ? shortAddr(live.winner) : "—"}`;
+    if (live.status === "Voided" || live.winner === zeroAddress) {
+      title = "Round closed · no winner";
+      detail =
+        revealedCount === 0
+          ? "No on-chain bids were revealed. The round was voided without selecting a winner."
+          : `${revealedCount} on-chain bid(s) revealed, but none were valid. Escrow was refunded.`;
+    } else {
+      title = "Round settled";
+      detail = `${revealedCount} on-chain bid(s) revealed. Winner: ${shortAddr(live.winner)}`;
+    }
     timerValue = live?.status ?? "done";
     ctaLabel = "Done";
     ctaDisabled = true;
@@ -212,8 +270,8 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
       <section className="case-hero">
         <div>
           <p className="eyebrow">Live round · Arbitrum Sepolia</p>
-          <h1>Sealed coordination</h1>
-          <p className="lede">Connect → create round → seal → wait for Drand → reveal → settle.</p>
+          <h1>{useCase.title}</h1>
+          <p className="lede">{useCase.description}</p>
         </div>
         <div className="round-box">
           <span>round</span>
@@ -393,7 +451,7 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
       {roundId != null ? (
         <SimulatedAgentStage
           roundId={roundId}
-          revealTriggered={revealedCount > 0 || live?.status === "Revealing"}
+          revealTriggered={revealedCount > 0}
         />
       ) : null}
 
@@ -413,11 +471,11 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
           <strong>{targetRound || "—"}</strong>
         </div>
         <div>
-          <span>Bidders</span>
+          <span>On-chain bidders</span>
           <strong>{bidders.length}</strong>
         </div>
         <div>
-          <span>Revealed</span>
+          <span>On-chain revealed</span>
           <strong>{revealedCount}</strong>
         </div>
         <div>
@@ -483,7 +541,9 @@ function LivePanel({ session }: { session: ReturnType<typeof useRoundSession> })
 
 export function DemoPage({ goHome }: { goHome: () => void }) {
   const [mode, setMode] = useState<DemoMode>("live");
-  const session = useRoundSession();
+  const [useCaseId, setUseCaseId] = useState<UseCaseId>("auction");
+  const session = useRoundSession(useCaseId);
+  const useCase = USE_CASES.find((item) => item.id === useCaseId) ?? USE_CASES[0];
 
   return (
     <main className="app-page">
@@ -515,6 +575,35 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
             </button>
           </div>
 
+          <nav className="use-case-nav" aria-label="Tacet use cases">
+            <div className="use-case-heading">
+              <span>Use cases</span>
+              <small>Choose the market story</small>
+            </div>
+            {USE_CASES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={useCaseId === item.id ? "active" : ""}
+                onClick={() => {
+                  setUseCaseId(item.id);
+                  setMode("live");
+                }}
+              >
+                <span>{item.index}</span>
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>{item.payoff}</small>
+                </div>
+              </button>
+            ))}
+          </nav>
+
+          <div className="protocol-note">
+            <span>Protocol promise</span>
+            <strong>No agent sees another decision before the cue.</strong>
+          </div>
+
           {mode === "live" && session.targetRound > 0 ? (
             <div className="drand-chip">
               <span>Drand R</span>
@@ -529,7 +618,7 @@ export function DemoPage({ goHome }: { goHome: () => void }) {
         </aside>
 
         <section className="case-workspace">
-          {mode === "live" ? <LivePanel session={session} /> : <EvidencePanel />}
+          {mode === "live" ? <LivePanel session={session} useCase={useCase} /> : <EvidencePanel />}
         </section>
       </section>
     </main>
