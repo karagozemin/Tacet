@@ -1,0 +1,212 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [{ "name": "token_", "type": "address", "internalType": "address" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "VOID_GRACE_SECONDS",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "clear",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      { "name": "winner", "type": "address", "internalType": "address" },
+      { "name": "winningBid", "type": "uint128", "internalType": "uint128" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "commit",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "internalType": "uint256" },
+      { "name": "commitmentHash", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "ciphertext", "type": "bytes", "internalType": "bytes" },
+      { "name": "auditorBlob", "type": "bytes", "internalType": "bytes" },
+      { "name": "escrow", "type": "uint128", "internalType": "uint128" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "commitment",
+    "inputs": [
+      { "name": "value", "type": "uint128", "internalType": "uint128" },
+      { "name": "nonce", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "createRound",
+    "inputs": [
+      { "name": "itemRef", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "revealRound", "type": "uint64", "internalType": "uint64" },
+      { "name": "clearingRule", "type": "uint8", "internalType": "enum TacetRound.ClearingRule" },
+      { "name": "commitDeadline", "type": "uint64", "internalType": "uint64" },
+      { "name": "revealDeadline", "type": "uint64", "internalType": "uint64" }
+    ],
+    "outputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getBidState",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "internalType": "uint256" },
+      { "name": "bidder", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [
+      { "name": "commitmentHash", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "escrow", "type": "uint128", "internalType": "uint128" },
+      { "name": "revealedValue", "type": "uint128", "internalType": "uint128" },
+      { "name": "revealed", "type": "bool", "internalType": "bool" },
+      { "name": "valid", "type": "bool", "internalType": "bool" },
+      { "name": "settled", "type": "bool", "internalType": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBidders",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "address[]", "internalType": "address[]" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getRound",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      { "name": "operator", "type": "address", "internalType": "address" },
+      { "name": "itemRef", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "revealRound", "type": "uint64", "internalType": "uint64" },
+      { "name": "clearingRule", "type": "uint8", "internalType": "enum TacetRound.ClearingRule" },
+      { "name": "commitDeadline", "type": "uint64", "internalType": "uint64" },
+      { "name": "revealDeadline", "type": "uint64", "internalType": "uint64" },
+      { "name": "status", "type": "uint8", "internalType": "enum TacetRound.RoundStatus" },
+      { "name": "winner", "type": "address", "internalType": "address" },
+      { "name": "winningBid", "type": "uint128", "internalType": "uint128" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSeal",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "internalType": "uint256" },
+      { "name": "bidder", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [
+      { "name": "ciphertext", "type": "bytes", "internalType": "bytes" },
+      { "name": "auditorBlob", "type": "bytes", "internalType": "bytes" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "nextRoundId",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "openReveal",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "reveal",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "internalType": "uint256" },
+      { "name": "bidder", "type": "address", "internalType": "address" },
+      { "name": "value", "type": "uint128", "internalType": "uint128" },
+      { "name": "nonce", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settle",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "token",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract IERC20" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "voidRound",
+    "inputs": [{ "name": "roundId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "Committed",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "indexed": true },
+      { "name": "bidder", "type": "address", "indexed": true },
+      { "name": "commitment", "type": "bytes32", "indexed": false },
+      { "name": "escrow", "type": "uint128", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RevealOpened",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "indexed": true },
+      { "name": "revealRound", "type": "uint64", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Revealed",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "indexed": true },
+      { "name": "bidder", "type": "address", "indexed": true },
+      { "name": "value", "type": "uint128", "indexed": false },
+      { "name": "valid", "type": "bool", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Cleared",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "indexed": true },
+      { "name": "winner", "type": "address", "indexed": false },
+      { "name": "winningBid", "type": "uint128", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Settled",
+    "inputs": [
+      { "name": "roundId", "type": "uint256", "indexed": true },
+      { "name": "winner", "type": "address", "indexed": false },
+      { "name": "winningBid", "type": "uint128", "indexed": false }
+    ],
+    "anonymous": false
+  }
+]
