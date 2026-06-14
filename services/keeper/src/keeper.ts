@@ -3,9 +3,21 @@ import { openBid, drandRoundPublishTimeMs, type DrandClient } from "@tacet/tlock
 import { nonceToBytes32 } from "@tacet/tlock";
 
 export type KeeperLogger = (msg: string) => void;
+export type KeeperClient = Pick<
+  TacetClient,
+  | "public"
+  | "getRound"
+  | "getBidders"
+  | "getBidState"
+  | "getSeal"
+  | "openReveal"
+  | "reveal"
+  | "clear"
+  | "settle"
+>;
 
 export interface KeeperDeps {
-  client: TacetClient;
+  client: KeeperClient;
   drand: DrandClient;
   log?: KeeperLogger;
   maxWaitSeconds?: number;
@@ -25,7 +37,7 @@ export const VOID_GRACE_SECONDS = 3600;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function chainNow(client: TacetClient): Promise<bigint> {
+async function chainNow(client: KeeperClient): Promise<bigint> {
   const block = await client.public.getBlock();
   return BigInt(block.timestamp);
 }

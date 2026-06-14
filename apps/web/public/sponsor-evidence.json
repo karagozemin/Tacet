@@ -1,0 +1,23 @@
+{
+  "alchemy": {
+    "network": "Arbitrum Sepolia",
+    "chainId": 421614,
+    "role": "Execution RPC for agents, keeper, analytics sync, and deployment tooling"
+  },
+  "zeroDev": {
+    "kernelAccount": "0x048b1243372Cb59751ab8e1b0172Be45FcD583B9",
+    "roundId": "13",
+    "userOpHash": "0x83df49cb5fd9a8d55c67038112275db7a7fd51e3ef3f5c18788f069694cd2152",
+    "transactionHash": "0xac01f17fb24b96e5341118551879d3e4f9e393addcf611dbe383879564b039aa",
+    "explorer": "https://sepolia.arbiscan.io/tx/0xac01f17fb24b96e5341118551879d3e4f9e393addcf611dbe383879564b039aa",
+    "action": "Sponsored TacetRound.createRound"
+  },
+  "dune": {
+    "queryId": 7718212,
+    "queryUrl": "https://dune.com/queries/7718212",
+    "syncedRounds": 13,
+    "totalCommits": 6,
+    "totalReveals": 4,
+    "settledVolumeTacet": 80.55
+  }
+}

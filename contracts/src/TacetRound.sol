@@ -8,7 +8,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 /// @title TacetRound
 /// @notice Sealed coordination round: commit sealed bids, reveal after Drand cue, settle on Arbitrum.
 /// @dev Reveal gate is time-based after commit deadline; timelock ciphertext prevents early decryption.
-///      On-chain BLS verification is not implemented in this MVP — see docs/LIMITATIONS.md.
+///      On-chain BLS verification is not implemented in this MVP — see the root ARCHITECTURE.md.
 contract TacetRound is ReentrancyGuard {
     using SafeERC20 for IERC20;
 

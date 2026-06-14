@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@tacet/sdk": "workspace:*",
-    "@tacet/tlock": "workspace:*"
+    "@tacet/tlock": "workspace:*",
+    "@zerodev/ecdsa-validator": "5.4.9",
+    "@zerodev/sdk": "5.5.10",
+    "permissionless": "0.3.6",
+    "viem": "^2.52.2"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

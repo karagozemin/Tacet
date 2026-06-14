@@ -27,6 +27,22 @@ interface Evidence {
   finalStatus?: string;
 }
 
+interface SponsorEvidence {
+  alchemy?: { network: string; chainId: number; role: string };
+  zeroDev?: {
+    kernelAccount: string;
+    explorer: string;
+    action: string;
+  };
+  dune?: {
+    queryUrl: string;
+    syncedRounds: number;
+    totalCommits: number;
+    totalReveals: number;
+    settledVolumeTacet: number;
+  };
+}
+
 const STATUS_FLOW = ["Open", "Commit", "Sealed", "Drand cue", "Reveal", "Clear", "Settle"] as const;
 const STATUS_DETAILS = [
   ["Round opened", "A new coordination window is published on Arbitrum."],
@@ -41,6 +57,7 @@ const STATUS_DETAILS = [
 export function EvidencePanel() {
   const [deployment, setDeployment] = useState<Deployment | null>(null);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [sponsors, setSponsors] = useState<SponsorEvidence | null>(null);
   const [phase, setPhase] = useState(2);
 
   useEffect(() => {
@@ -52,6 +69,10 @@ export function EvidencePanel() {
       .then((r) => (r.ok ? r.json() : null))
       .then(setEvidence)
       .catch(() => setEvidence(null));
+    fetch("/sponsor-evidence.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSponsors)
+      .catch(() => setSponsors(null));
   }, []);
 
   useEffect(() => {
@@ -152,6 +173,42 @@ export function EvidencePanel() {
           <p className="status">
             Status: <strong>{finalStatus}</strong> {revealed ? `· ${revealed} bids revealed` : ""}
           </p>
+        </article>
+      </section>
+
+      <section className="grid">
+        <article className="panel">
+          <h2>Autonomous infrastructure</h2>
+          <dl>
+            <dt>Alchemy</dt>
+            <dd>{sponsors?.alchemy?.role ?? "Arbitrum Sepolia execution RPC"}</dd>
+            <dt>ZeroDev Kernel keeper</dt>
+            <dd className="mono">
+              {sponsors?.zeroDev?.explorer ? (
+                <a href={sponsors.zeroDev.explorer} target="_blank" rel="noreferrer">
+                  {sponsors.zeroDev.kernelAccount} <span>↗</span>
+                </a>
+              ) : "—"}
+            </dd>
+            <dt>Sponsored action</dt>
+            <dd>{sponsors?.zeroDev?.action ?? "—"}</dd>
+          </dl>
+        </article>
+        <article className="panel">
+          <h2>Dune protocol analytics</h2>
+          <dl>
+            <dt>Synced rounds</dt>
+            <dd>{sponsors?.dune?.syncedRounds ?? "—"}</dd>
+            <dt>Commits / reveals</dt>
+            <dd>{sponsors?.dune ? `${sponsors.dune.totalCommits} / ${sponsors.dune.totalReveals}` : "—"}</dd>
+            <dt>Settled volume</dt>
+            <dd>{sponsors?.dune ? `${sponsors.dune.settledVolumeTacet} TACET` : "—"}</dd>
+          </dl>
+          {sponsors?.dune?.queryUrl ? (
+            <a className="link" href={sponsors.dune.queryUrl} target="_blank" rel="noreferrer">
+              View public Dune query →
+            </a>
+          ) : null}
         </article>
       </section>
 
