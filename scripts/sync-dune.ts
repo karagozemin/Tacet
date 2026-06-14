@@ -80,7 +80,7 @@ ORDER BY round_id DESC
       "X-DUNE-API-KEY": apiKey,
     },
     body: JSON.stringify({
-      name: `Tacet Protocol Analytics ${new Date().toISOString().slice(0, 10)}`,
+      name: `Tacet System Analytics ${new Date().toISOString().slice(0, 10)}`,
       description:
         "Arbitrum Sepolia Tacet round snapshot synced from the live contract through Alchemy.",
       query_sql: querySql,

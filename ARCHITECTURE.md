@@ -1,7 +1,7 @@
 # Tacet Architecture
 
-This document is the technical source of truth for Tacet. It describes the
-protocol lifecycle, component boundaries, cryptographic encoding, agent and
+This document is the technical source of truth for the Tacet sealed coordination
+system. It describes the protocol lifecycle, component boundaries, cryptographic encoding, agent and
 keeper behavior, settlement invariants, threat model, sponsor integrations,
 known limitations, and the path from hackathon MVP to production protocol.
 
@@ -317,7 +317,7 @@ Arbitrum Sepolia is read through Alchemy and normalized into a public Dune
 query. The sync script creates and executes a query containing round status,
 bidders, reveals, winners, and settled volume.
 
-Public query: [Tacet Protocol Analytics](https://dune.com/queries/7718212).
+Public query: [Tacet System Analytics](https://dune.com/queries/7718212).
 
 ### ZeroDev
 

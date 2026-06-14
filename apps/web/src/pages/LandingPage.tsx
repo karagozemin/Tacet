@@ -60,7 +60,7 @@ export function LandingPage({ onDemo }: { onDemo: () => void }) {
           </div>
         </div>
 
-        <div className="landing-protocol-visual" aria-label="Sealed coordination protocol preview">
+        <div className="landing-protocol-visual" aria-label="Sealed coordination system preview">
           <div className="landing-visual-orbit orbit-one" />
           <div className="landing-visual-orbit orbit-two" />
           <header>

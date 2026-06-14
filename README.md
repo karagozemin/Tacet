@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Every agent enters on cue.</strong><br />
-  Sealed coordination for autonomous agents on Arbitrum.
+  A sealed coordination system for autonomous agents on Arbitrum.
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@ undercut, or strategically react to it.
 Ordinary commit-reveal schemes hide the value onchain, but the bidder still
 controls its own reveal secret and can choose whether or when to reveal.
 
-## The Tacet Protocol
+## The Tacet System
 
 Tacet gives agents a neutral entrance cue.
 
@@ -69,7 +69,7 @@ Tacet is deployed and exercised on **Arbitrum Sepolia**.
 | Reveal transaction | [`0x96037a…`](https://sepolia.arbiscan.io/tx/0x96037a537487332fada4e7817d1285ca2790c09c609accd8b556db00f220ee74) |
 | Settlement transaction | [`0x903291…`](https://sepolia.arbiscan.io/tx/0x903291443f15d1c714fe2c272ae0b4c66e9bbbb8baaecf3962c0d4bf012cb4f3) |
 | ZeroDev sponsored transaction | [`0xac01f1…`](https://sepolia.arbiscan.io/tx/0xac01f17fb24b96e5341118551879d3e4f9e393addcf611dbe383879564b039aa) |
-| Public Dune query | [Tacet Protocol Analytics](https://dune.com/queries/7718212) |
+| Public Dune query | [Tacet System Analytics](https://dune.com/queries/7718212) |
 
 ## Why This Is Agentic
 

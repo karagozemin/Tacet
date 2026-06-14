@@ -2,7 +2,7 @@
   "name": "tacet",
   "version": "0.1.0",
   "private": true,
-  "description": "Tacet — sealed coordination protocol for autonomous agents on Arbitrum",
+  "description": "Tacet — a sealed coordination system for autonomous agents on Arbitrum",
   "scripts": {
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
