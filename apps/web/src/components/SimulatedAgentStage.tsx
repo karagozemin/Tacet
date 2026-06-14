@@ -1,18 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import type { Address, Hex } from "viem";
 
-interface DemoAgent {
-  name: string;
+import { formatTokenAmount } from "../config/chain";
+import { shortAddr } from "../lib/format";
+
+interface StageAgent {
+  key: string;
+  displayName: string;
   initials: string;
   address: string;
-  value: number;
-  escrow: number;
+  valueLabel: string;
+  escrowLabel: string;
   color: string;
   rationale: string;
   ciphertext: string;
+  source: "live" | "preview";
+  liveRevealed: boolean;
+  liveWinner: boolean;
+  previewIndex?: number;
 }
 
 type ScenarioId = "auction" | "procurement" | "coordination" | "rfq";
+
+interface LiveBidState {
+  commitment: Hex;
+  escrow: bigint;
+  revealedValue: bigint;
+  revealed: boolean;
+  valid: boolean;
+  settled: boolean;
+}
 
 const SCENARIO_AGENTS = {
   auction: [{
@@ -88,25 +106,73 @@ export function SimulatedAgentStage({
   roundId,
   revealTriggered,
   scenario,
+  bidders,
+  bidStates,
+  winner,
+  currentAddress,
+  onRefresh,
 }: {
   roundId: bigint;
   revealTriggered: boolean;
   scenario: ScenarioId;
+  bidders: Address[];
+  bidStates: Record<string, LiveBidState>;
+  winner?: Address;
+  currentAddress?: Address;
+  onRefresh: () => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const [revealRequested, setRevealRequested] = useState(false);
   const [revealedCount, setRevealedCount] = useState(0);
 
-  const agents = useMemo<DemoAgent[]>(
-    () =>
-      SCENARIO_AGENTS[scenario].map((agent, index) => ({
-        ...agent,
-        ciphertext: ciphertextFor(roundId, index),
-      })),
+  const previewAgents = useMemo<StageAgent[]>(
+    () => SCENARIO_AGENTS[scenario].map((agent, index) => ({
+      key: `preview-${agent.name}`,
+      displayName: `Agent ${agent.name}`,
+      initials: agent.initials,
+      address: agent.address,
+      valueLabel: agent.value.toString(),
+      escrowLabel: `${agent.escrow} TACET`,
+      color: agent.color,
+      rationale: agent.rationale,
+      ciphertext: ciphertextFor(roundId, index),
+      source: "preview",
+      liveRevealed: false,
+      liveWinner: false,
+      previewIndex: index,
+    })),
     [roundId, scenario],
   );
+  const liveAgents = useMemo<StageAgent[]>(
+    () => bidders.map((bidder, index) => {
+      const state = bidStates[bidder];
+      const isCurrent = bidder.toLowerCase() === currentAddress?.toLowerCase();
+      return {
+        key: `live-${bidder}`,
+        displayName: isCurrent ? "Your bidder account" : `On-chain bidder ${index + 1}`,
+        initials: isCurrent ? "YOU" : `L${index + 1}`,
+        address: shortAddr(bidder, 8),
+        valueLabel: state ? formatTokenAmount(state.revealedValue).replace(" TACET", "") : "—",
+        escrowLabel: state ? formatTokenAmount(state.escrow) : "loading…",
+        color: ["#8b72e8", "#54a7c7", "#d78964", "#67d39b"][index % 4]!,
+        rationale: state?.revealed
+          ? `Verified on-chain · ${state.valid ? "valid bid" : "invalid bid"}`
+          : `Live commitment ${state ? shortAddr(state.commitment, 10) : "loading…"}`,
+        ciphertext: state ? shortAddr(state.commitment, 10) : "loading…",
+        source: "live",
+        liveRevealed: Boolean(state?.revealed),
+        liveWinner:
+          Boolean(winner) &&
+          winner !== "0x0000000000000000000000000000000000000000" &&
+          bidder.toLowerCase() === winner?.toLowerCase(),
+      };
+    }),
+    [bidders, bidStates, currentAddress, winner],
+  );
+  const agents = useMemo(() => [...liveAgents, ...previewAgents], [liveAgents, previewAgents]);
+  const arrivalKey = bidders.join(":");
   const copy = SCENARIO_COPY[scenario];
-  const winner = Math.max(...agents.map((agent) => agent.value));
+  const previewWinner = Math.max(...SCENARIO_AGENTS[scenario].map((agent) => agent.value));
   const revealing = revealRequested || revealTriggered;
 
   useEffect(() => {
@@ -117,29 +183,30 @@ export function SimulatedAgentStage({
       window.setTimeout(() => setVisibleCount(index + 1), 550 + index * 800),
     );
     return () => timers.forEach(window.clearTimeout);
-  }, [roundId, agents]);
+  }, [roundId, scenario, arrivalKey, agents.length]);
 
   useEffect(() => {
     if (!revealing || visibleCount < agents.length) return;
-    const timers = agents.map((_, index) =>
+    const timers = previewAgents.map((_, index) =>
       window.setTimeout(() => setRevealedCount(index + 1), 300 + index * 700),
     );
     return () => timers.forEach(window.clearTimeout);
-  }, [revealing, visibleCount, agents]);
+  }, [revealing, visibleCount, agents.length, previewAgents]);
 
   return (
     <section className={`agent-stage ${revealing ? "revealing" : ""}`}>
       <header className="agent-stage-header">
         <div>
-          <p className="eyebrow">{copy.eyebrow} · scenario preview</p>
+          <p className="eyebrow">{copy.eyebrow} · round #{roundId.toString()}</p>
           <h2>{revealing ? "The cue has sounded." : copy.title}</h2>
           <p>
-            A jury-facing preview of the multi-agent market experience. Values stay hidden behind
-            Drand-style ciphertext until the cue.
+            Live on-chain bidders and scenario agents enter the same sealed market. LIVE cards
+            open only when their real commitment is revealed.
           </p>
         </div>
         <div className="agent-stage-actions">
-          <span className="simulation-badge">scenario preview</span>
+          <span className="live-chain-badge">live · {bidders.length}</span>
+          <button type="button" className="ghost-action" onClick={onRefresh}>Refresh</button>
           <button
             type="button"
             className="secondary-action"
@@ -147,9 +214,9 @@ export function SimulatedAgentStage({
               setRevealedCount(0);
               setRevealRequested(true);
             }}
-            disabled={visibleCount < agents.length || revealedCount === agents.length}
+            disabled={visibleCount < agents.length || revealedCount === previewAgents.length}
           >
-            {revealedCount === agents.length ? "All bids revealed" : "Preview Drand reveal"}
+            {revealedCount === previewAgents.length ? "Preview revealed" : "Preview Drand reveal"}
           </button>
         </div>
       </header>
@@ -161,15 +228,22 @@ export function SimulatedAgentStage({
       <div className="sim-agent-grid">
         {agents.map((agent, index) => {
           const visible = index < visibleCount;
-          const revealed = index < revealedCount;
-          const decrypting = revealing && visible && !revealed;
-          const isWinner = revealedCount === agents.length && agent.value === winner;
+          const revealed =
+            agent.source === "live"
+              ? agent.liveRevealed
+              : (agent.previewIndex ?? 0) < revealedCount;
+          const decrypting = agent.source === "preview" && revealing && visible && !revealed;
+          const isWinner =
+            agent.source === "live"
+              ? agent.liveWinner
+              : revealedCount === previewAgents.length &&
+                agent.valueLabel === previewWinner.toString();
           return (
             <article
-              key={agent.name}
+              key={agent.key}
               className={`sim-agent-card ${visible ? "arrived" : "queued"} ${
                 revealed ? "revealed" : "sealed"
-              } ${decrypting ? "decrypting" : ""} ${isWinner ? "winner" : ""}`}
+              } ${decrypting ? "decrypting" : ""} ${isWinner ? "winner" : ""} ${agent.source}`}
               style={{ "--agent-color": agent.color } as CSSProperties}
             >
               <div className="sim-agent-card-inner">
@@ -177,20 +251,20 @@ export function SimulatedAgentStage({
                   <div className="crypto-state-banner">
                     <span className="crypto-lock" aria-hidden>⌁</span>
                     <div>
-                      <strong>{decrypting ? "DECRYPTING WITH DRAND R" : "ENCRYPTED · TIMELOCKED"}</strong>
+                      <strong>{decrypting ? "DECRYPTING WITH DRAND R" : agent.source === "live" ? "LIVE · TIMELOCKED" : "ENCRYPTED · TIMELOCKED"}</strong>
                       <small>{decrypting ? "opening ciphertext…" : "plaintext unavailable before cue"}</small>
                     </div>
                   </div>
                   <header>
                     <span className="agent-avatar">{agent.initials}</span>
                     <div>
-                      <strong>Agent {agent.name}</strong>
+                      <strong>{agent.displayName}</strong>
                       <small>{visible ? agent.address : "approaching round…"}</small>
                     </div>
-                    <span className="agent-state">{visible ? "sealed" : "queued"}</span>
+                    <span className="agent-state">{visible ? agent.source === "live" ? "live · sealed" : "preview · sealed" : "queued"}</span>
                   </header>
                   <div className="cipher-field">
-                    <span>{decrypting ? "decrypting ciphertext" : "encrypted ciphertext"}</span>
+                    <span>{decrypting ? "decrypting ciphertext" : agent.source === "live" ? "live commitment" : "encrypted ciphertext"}</span>
                     <strong>{visible ? agent.ciphertext : "waiting for entrance cue"}</strong>
                     <div className="cipher-bars" aria-hidden>
                       <i />
@@ -202,8 +276,8 @@ export function SimulatedAgentStage({
                     {decrypting ? <div className="decrypt-scan" aria-hidden /> : null}
                   </div>
                   <footer>
-                    <span>Escrow {agent.escrow} TACET</span>
-                    <span>Value unreadable</span>
+                    <span>Escrow {agent.escrowLabel}</span>
+                    <span>{agent.source === "live" ? "LIVE" : "PREVIEW"} · Value unreadable</span>
                   </footer>
                 </div>
 
@@ -211,21 +285,21 @@ export function SimulatedAgentStage({
                   <div className="crypto-state-banner opened">
                     <span className="crypto-lock" aria-hidden>✓</span>
                     <div>
-                      <strong>DECRYPTED · PUBLIC</strong>
-                      <small>Drand cue verified · plaintext opened</small>
+                      <strong>{agent.source === "live" ? "LIVE · REVEALED ON-CHAIN" : "DECRYPTED · PUBLIC"}</strong>
+                      <small>{agent.source === "live" ? "commitment verified by contract" : "Drand cue verified · plaintext opened"}</small>
                     </div>
                   </div>
                   <header>
                     <span className="agent-avatar">{agent.initials}</span>
                     <div>
-                      <strong>Agent {agent.name}</strong>
+                      <strong>{agent.displayName}</strong>
                       <small>{agent.address}</small>
                     </div>
-                    <span className="agent-state">{isWinner ? "winner" : "revealed"}</span>
+                    <span className="agent-state">{isWinner ? "winner" : agent.source === "live" ? "live · revealed" : "preview · revealed"}</span>
                   </header>
                   <div className="revealed-value">
-                    <span>opened bid</span>
-                    <strong>{agent.value}</strong>
+                    <span>{agent.source === "live" ? "real opened bid" : "opened bid"}</span>
+                    <strong>{agent.valueLabel}</strong>
                     <small>TACET</small>
                   </div>
                   <p>{agent.rationale}</p>
@@ -237,8 +311,8 @@ export function SimulatedAgentStage({
       </div>
 
       <footer className="stage-footnote">
-        <span>{visibleCount} / {agents.length} preview {copy.noun} arrived</span>
-        <span>Live protocol state and on-chain bidder count are shown separately.</span>
+        <span>{visibleCount} / {agents.length} {copy.noun} arrived · {bidders.length} LIVE</span>
+        <span>Live bidders auto-refresh every ~12 seconds.</span>
       </footer>
     </section>
   );

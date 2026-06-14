@@ -533,6 +533,11 @@ function LivePanel({
           roundId={roundId}
           revealTriggered={revealedCount > 0}
           scenario={useCase.id}
+          bidders={bidders}
+          bidStates={bidStates}
+          winner={live?.winner}
+          currentAddress={address}
+          onRefresh={() => void refresh()}
         />
       ) : null}
 
@@ -570,29 +575,6 @@ function LivePanel({
           </button>
         </div>
       </section>
-
-      {bidders.length > 0 ? (
-        <section className="bidders-panel panel">
-          <h2>On-chain bidders</h2>
-          <ul>
-            {bidders.map((b) => {
-              const st = bidStates[b];
-              return (
-                <li key={b}>
-                  <span className="mono">{shortAddr(b)}</span>
-                  <span>
-                    {st?.revealed
-                      ? `${formatTokenAmount(st.revealedValue)} revealed`
-                      : st?.escrow
-                        ? `${formatTokenAmount(st.escrow)} sealed`
-                        : "—"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
 
       <section className={`tx-log ${status}`}>
         <span>Activity log</span>
